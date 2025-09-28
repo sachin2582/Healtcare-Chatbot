@@ -5,7 +5,7 @@ from typing import List, Optional
 import uvicorn
 
 from database import get_db, init_db
-from models import Patient, Doctor, Appointment, Document, Questionnaire, ChatSession, Speciality, DoctorTimeSlots, HealthPackage, HealthPackageTest, CallbackRequest
+from models import Patient, Doctor, Appointment, Document, Questionnaire, ChatSession, Speciality, DoctorTimeSlots, HealthPackage, HealthPackageTest, HealthPackageBooking, CallbackRequest
 from schemas import (
     Patient as PatientSchema, PatientCreate, PatientUpdate,
     Doctor as DoctorSchema, DoctorCreate,
@@ -21,11 +21,12 @@ from schemas import (
     HealthPackage as HealthPackageSchema, HealthPackageCreate,
     HealthPackageTest as HealthPackageTestSchema, HealthPackageTestCreate,
     HealthPackageWithTests, HealthPackageBookingRequest, HealthPackageBookingResponse,
+    HealthPackageBooking as HealthPackageBookingSchema, HealthPackageBookingCreate,
     CallbackRequest as CallbackRequestSchema, CallbackRequestCreate, CallbackRequestResponse
 )
 from rag_service_enhanced import EnhancedRAGService
 from config import CORS_ORIGINS
-from text_config import SystemMessages
+from text_config import SystemMessages, ErrorMessages
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -654,6 +655,75 @@ async def get_health_packages(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching health packages: {str(e)}")
 
+# Health Package Booking Endpoints (must come before /health-packages/{package_id})
+@app.get("/health-packages/bookings", response_model=List[HealthPackageBookingSchema])
+async def get_health_package_bookings(
+    skip: int = 0,
+    limit: int = 100,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get all health package bookings with optional filters"""
+    try:
+        query = db.query(HealthPackageBooking)
+        
+        if status:
+            query = query.filter(HealthPackageBooking.status == status)
+        
+        bookings = query.offset(skip).limit(limit).all()
+        return bookings
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching health package bookings: {str(e)}")
+
+@app.get("/health-packages/bookings/{booking_id}", response_model=HealthPackageBookingSchema)
+async def get_health_package_booking(booking_id: int, db: Session = Depends(get_db)):
+    """Get a specific health package booking by ID"""
+    try:
+        booking = db.query(HealthPackageBooking).filter(HealthPackageBooking.id == booking_id).first()
+        
+        if not booking:
+            raise HTTPException(status_code=404, detail="Health package booking not found")
+        
+        return booking
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching health package booking: {str(e)}")
+
+@app.put("/health-packages/bookings/{booking_id}", response_model=HealthPackageBookingSchema)
+async def update_health_package_booking(
+    booking_id: int,
+    booking_update: HealthPackageBookingCreate,
+    db: Session = Depends(get_db)
+):
+    """Update a health package booking"""
+    try:
+        booking = db.query(HealthPackageBooking).filter(HealthPackageBooking.id == booking_id).first()
+        
+        if not booking:
+            raise HTTPException(status_code=404, detail="Health package booking not found")
+        
+        # Update booking fields
+        for field, value in booking_update.dict().items():
+            if hasattr(booking, field):
+                setattr(booking, field, value)
+        
+        from datetime import datetime
+        booking.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(booking)
+        
+        return booking
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating health package booking: {str(e)}")
+
 @app.get("/health-packages/{package_id}", response_model=HealthPackageWithTests)
 async def get_health_package(package_id: int, db: Session = Depends(get_db)):
     """Get a specific health package with all its tests"""
@@ -703,7 +773,7 @@ async def get_health_package(package_id: int, db: Session = Depends(get_db)):
 async def book_health_package(booking_request: HealthPackageBookingRequest, db: Session = Depends(get_db)):
     """Book a health package"""
     try:
-        from datetime import datetime
+        from datetime import datetime, date
         import random
         import string
         
@@ -722,14 +792,37 @@ async def book_health_package(booking_request: HealthPackageBookingRequest, db: 
             "%Y-%m-%d %H:%M"
         )
         
-        # Create booking record (you might want to create a separate HealthPackageBooking model)
-        # For now, we'll create a simple booking response
-        
-        # Generate confirmation number
+        # Generate unique confirmation number
         confirmation_number = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
         
+        # Ensure confirmation number is unique
+        while db.query(HealthPackageBooking).filter(HealthPackageBooking.confirmation_number == confirmation_number).first():
+            confirmation_number = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        
+        # Create booking record in database
+        booking = HealthPackageBooking(
+            package_id=booking_request.package_id,
+            patient_name=booking_request.patient_name,
+            patient_email=booking_request.patient_email,
+            patient_phone=booking_request.patient_phone,
+            patient_age=booking_request.patient_age,
+            patient_gender=booking_request.patient_gender,
+            preferred_date=date.fromisoformat(booking_request.preferred_date),
+            preferred_time=booking_request.preferred_time,
+            total_amount=package.price,
+            status="confirmed",
+            confirmation_number=confirmation_number,
+            payment_status="pending",
+            booking_date=booking_datetime,
+            notes=booking_request.notes
+        )
+        
+        db.add(booking)
+        db.commit()
+        db.refresh(booking)
+        
         return HealthPackageBookingResponse(
-            booking_id=random.randint(1000, 9999),  # Temporary booking ID
+            booking_id=booking.id,
             package_name=package.name,
             total_amount=package.price,
             booking_date=booking_request.preferred_date,
@@ -741,6 +834,7 @@ async def book_health_package(booking_request: HealthPackageBookingRequest, db: 
     except HTTPException:
         raise
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Error booking health package: {str(e)}")
 
 # Callback Request Endpoints

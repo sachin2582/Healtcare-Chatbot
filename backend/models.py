@@ -177,6 +177,30 @@ class HealthPackageTest(Base):
     # Relationships
     package = relationship("HealthPackage", back_populates="tests")
 
+class HealthPackageBooking(Base):
+    __tablename__ = "health_package_bookings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    package_id = Column(Integer, ForeignKey("health_packages.id"), nullable=False)
+    patient_name = Column(String(255), nullable=False)
+    patient_email = Column(String(255), nullable=False)
+    patient_phone = Column(String(20), nullable=False)
+    patient_age = Column(Integer, nullable=False)
+    patient_gender = Column(String(10), nullable=False)
+    preferred_date = Column(Date, nullable=False)
+    preferred_time = Column(String(10), nullable=False)  # e.g., "09:00"
+    total_amount = Column(Integer, nullable=False)
+    status = Column(String(20), default="confirmed")  # confirmed, completed, cancelled, rescheduled
+    confirmation_number = Column(String(20), unique=True, nullable=False)
+    payment_status = Column(String(20), default="pending")  # pending, paid, failed, refunded
+    notes = Column(Text, nullable=True)  # Additional notes from user
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    booking_date = Column(DateTime, nullable=False)  # Actual booking datetime
+    
+    # Relationships
+    package = relationship("HealthPackage")
+
 class CallbackRequest(Base):
     __tablename__ = "callback_requests"
     

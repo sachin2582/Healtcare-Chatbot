@@ -308,10 +308,11 @@ class HealthPackageWithTests(HealthPackage):
 # Health Package Booking Schemas
 class HealthPackageBookingRequest(BaseModel):
     package_id: int
-    patient_id: Optional[int] = None
-    patient_name: Optional[str] = None
-    patient_phone: Optional[str] = None
-    patient_email: Optional[str] = None
+    patient_name: str
+    patient_email: str
+    patient_phone: str
+    patient_age: int
+    patient_gender: str
     preferred_date: str  # YYYY-MM-DD format
     preferred_time: str  # HH:MM format
     home_collection: bool = False
@@ -326,6 +327,34 @@ class HealthPackageBookingResponse(BaseModel):
     booking_time: str
     status: str
     confirmation_number: str
+
+# Health Package Booking Schemas
+class HealthPackageBookingBase(BaseModel):
+    package_id: int
+    patient_name: str
+    patient_email: str
+    patient_phone: str
+    patient_age: int
+    patient_gender: str
+    preferred_date: str
+    preferred_time: str
+    notes: Optional[str] = None
+
+class HealthPackageBookingCreate(HealthPackageBookingBase):
+    pass
+
+class HealthPackageBooking(HealthPackageBookingBase):
+    id: int
+    total_amount: int
+    status: str
+    confirmation_number: str
+    payment_status: str
+    created_at: datetime
+    updated_at: datetime
+    booking_date: datetime
+
+    class Config:
+        from_attributes = True
 
 # Callback Request Schemas
 class CallbackRequestBase(BaseModel):

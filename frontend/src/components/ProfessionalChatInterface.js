@@ -72,15 +72,6 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
       setAppointmentDialogOpen(false);
       setHealthPackageDialogOpen(false);
       setCallbackFlow(false);
-      // Show welcome message after clearing
-      setTimeout(() => {
-        const welcomeResponse = createGreetingResponse();
-        setMessages([welcomeResponse]);
-      }, 300);
-    } else if (messages.length === 0) {
-      // Show welcome message only on initial mount
-      const welcomeResponse = createGreetingResponse();
-      setMessages([welcomeResponse]);
     }
   }, [clearChat]);
 
@@ -93,12 +84,6 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
     setAppointmentDialogOpen(false);
     setHealthPackageDialogOpen(false);
     setCallbackFlow(false);
-    
-    // Show welcome message
-    setTimeout(() => {
-      const welcomeResponse = createGreetingResponse();
-      setMessages([welcomeResponse]);
-    }, 300);
   };
 
   const sendMessage = async () => {
@@ -120,7 +105,12 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
     // Check if it's a greeting and respond with buttons
     if (isGreeting(currentMessage)) {
       setTimeout(() => {
-        const greetingResponse = createGreetingResponse();
+        const greetingResponse = {
+          id: Date.now() + 1,
+          content: "Hello! How can I help you today?",
+          sender: 'bot',
+          timestamp: new Date(),
+        };
         setMessages(prev => [...prev, greetingResponse]);
         setLoading(false);
       }, 500); // Small delay for better UX
@@ -444,45 +434,159 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
 
           {/* Messages Area */}
           <Box className="messages-container">
-            {messages.length === 0 && (
-              <Box className="welcome-message">
-                <Card className="welcome-card">
-                  <CardContent>
-                    <Avatar className="welcome-avatar">
-                      <SmartToy />
-                    </Avatar>
-                    <Typography variant="subtitle1" className="welcome-title">
-                      {UI_MESSAGES.GREETING_RESPONSES.WELCOME_MESSAGE}
-                    </Typography>
-                    <Typography variant="caption" className="welcome-text">
-                      {UI_MESSAGES.GREETING_RESPONSES.WELCOME_SUBTITLE}
-                    </Typography>
-                    <Typography variant="caption" className="welcome-question">
-                      {UI_MESSAGES.GREETING_RESPONSES.HELP_QUESTION}
-                    </Typography>
-                    <Box className="welcome-options">
-                      {Object.entries(UI_MESSAGES.WELCOME_OPTIONS).map(([key, option]) => (
-                        <Button
-                          key={key}
-                          variant="outlined"
-                          className="welcome-option-button"
-                          onClick={() => setInputMessage(option.action)}
-                          startIcon={<span className="option-icon">{option.icon}</span>}
-                        >
-                          <Box className="option-content">
-                            <Typography variant="body2" className="option-label">
-                              {option.label}
-                            </Typography>
-                            <Typography variant="caption" className="option-description">
-                              {option.description}
-                            </Typography>
-                          </Box>
-                        </Button>
-                      ))}
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Box>
+            {messages.filter(msg => msg.sender === 'user').length === 0 && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px 20px',
+                textAlign: 'center',
+                background: '#f8fafc',
+                borderRadius: '20px',
+                margin: '20px',
+                border: '1px solid #e2e8f0'
+              }}>
+                {/* Avatar */}
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '20px',
+                  color: 'white',
+                  fontSize: '24px'
+                }}>
+                  🤖
+                </div>
+
+                {/* Title */}
+                <h2 style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#1a202c',
+                  margin: '0 0 4px 0',
+                  lineHeight: '1.2'
+                }}>
+                  Welcome to Healthcare AI
+                </h2>
+
+                {/* Subtitle */}
+                <p style={{
+                  fontSize: '13px',
+                  color: '#64748b',
+                  margin: '0 0 6px 0',
+                  lineHeight: '1.3'
+                }}>
+                  Your trusted healthcare companion
+                </p>
+
+                {/* Question */}
+                <p style={{
+                  fontSize: '15px',
+                  color: '#374151',
+                  margin: '0 0 16px 0',
+                  fontWeight: '500'
+                }}>
+                  How can I assist you today?
+                </p>
+
+                {/* Test Buttons - Simple Hardcoded */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  width: '100%',
+                  maxWidth: '400px'
+                }}>
+                  <button
+                    onClick={() => setInputMessage("I want to book a health checkup")}
+                    style={{
+                      background: 'white',
+                      border: '2px solid black',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: 'black',
+                      textAlign: 'center',
+                      minHeight: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    🏥 Book a Health Checkup
+                  </button>
+                  
+                  <button
+                    onClick={() => setInputMessage("I need to book an appointment")}
+                    style={{
+                      background: 'white',
+                      border: '2px solid black',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: 'black',
+                      textAlign: 'center',
+                      minHeight: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    📅 Appointment Booking
+                  </button>
+                  
+                  <button
+                    onClick={() => setInputMessage("I need emergency assistance")}
+                    style={{
+                      background: 'white',
+                      border: '2px solid black',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: 'black',
+                      textAlign: 'center',
+                      minHeight: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    🚨 Emergency Assistance
+                  </button>
+                  
+                  <button
+                    onClick={() => setInputMessage("I want to request a callback")}
+                    style={{
+                      background: 'white',
+                      border: '2px solid black',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: 'black',
+                      textAlign: 'center',
+                      minHeight: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    📞 Request a Callback
+                  </button>
+                </div>
+              </div>
             )}
 
             {messages.map((message) => (
