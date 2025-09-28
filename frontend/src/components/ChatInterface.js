@@ -59,7 +59,7 @@ const ChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose, clearChat 
     }
   }, [propSelectedDoctor]);
 
-  // Clear chat when clearChat prop is true
+  // Show welcome message on component mount and when clearing chat
   useEffect(() => {
     if (clearChat) {
       setMessages([]);
@@ -69,8 +69,34 @@ const ChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose, clearChat 
       setAppointmentDialogOpen(false);
       setHealthPackageDialogOpen(false);
       setCallbackFlow(false);
+      // Show welcome message after clearing
+      setTimeout(() => {
+        const welcomeResponse = createGreetingResponse();
+        setMessages([welcomeResponse]);
+      }, 300);
+    } else if (messages.length === 0) {
+      // Show welcome message only on initial mount
+      const welcomeResponse = createGreetingResponse();
+      setMessages([welcomeResponse]);
     }
   }, [clearChat]);
+
+  // Restart conversation function
+  const restartConversation = () => {
+    setMessages([]);
+    setInputMessage('');
+    setError(null);
+    setLoading(false);
+    setAppointmentDialogOpen(false);
+    setHealthPackageDialogOpen(false);
+    setCallbackFlow(false);
+    
+    // Show welcome message
+    setTimeout(() => {
+      const welcomeResponse = createGreetingResponse();
+      setMessages([welcomeResponse]);
+    }, 300);
+  };
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -669,6 +695,35 @@ const ChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose, clearChat 
             <Send />
           </IconButton>
         </Stack>
+        
+        {/* Restart Conversation Button */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+          <Button 
+            size="small" 
+            onClick={restartConversation}
+            startIcon={<SmartToy />}
+            sx={{
+              fontSize: '11px',
+              textTransform: 'none',
+              padding: '6px 16px',
+              borderRadius: '20px',
+              background: '#f8f9fa',
+              color: '#6c757d',
+              border: '1px solid #dee2e6',
+              fontWeight: 500,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                background: '#e9ecef',
+                borderColor: '#1e3c72',
+                color: '#1e3c72',
+                transform: 'translateY(-1px)',
+                boxShadow: '0 2px 8px rgba(30, 60, 114, 0.15)'
+              }
+            }}
+          >
+            Restart Conversation
+          </Button>
+        </Box>
       </Paper>
 
       {/* Appointment Booking Dialog */}

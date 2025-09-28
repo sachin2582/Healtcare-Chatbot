@@ -15,10 +15,10 @@ export const BRANDING = {
   AI_WELCOME_QUESTION: "Are you looking for:"
 };
 
-// UI Messages
-export const UI_MESSAGES = {
-  // Chat Interface
-  PLACEHOLDER_MESSAGE: "Type your message...",
+  // UI Messages
+  export const UI_MESSAGES = {
+    // Chat Interface
+    PLACEHOLDER_MESSAGE: "Type your message here...",
   CONSULTING_FOR: "Consulting for",
   PREFERRED_SPECIALIST: "Preferred specialist:",
   
@@ -80,8 +80,9 @@ export const UI_MESSAGES = {
 
   // Greeting Responses
   GREETING_RESPONSES: {
-    WELCOME_MESSAGE: "Hello! Welcome to Fortis Healthcare. I'm your AI health assistant.",
-    HELP_QUESTION: "How can I assist you today? Please select from the options below:",
+    WELCOME_MESSAGE: "Welcome to Healthcare AI",
+    WELCOME_SUBTITLE: "Your trusted healthcare companion",
+    HELP_QUESTION: "How can I assist you today?",
     GREETING_PATTERNS: [
       "hi", "hello", "hey", "good morning", "good afternoon", "good evening",
       "greetings", "howdy", "hi there", "hello there", "hey there"

@@ -29,7 +29,7 @@ import {
 import { useAppContext } from '../contexts/AppContext';
 import chatService from '../services/chatService';
 import callbackService from '../services/callbackService';
-import { BRANDING, UI_MESSAGES } from '../config/textConfig';
+import { UI_MESSAGES } from '../config/textConfig';
 import AppointmentFlow from './AppointmentFlow';
 import HealthPackageBooking from './HealthPackageBooking';
 import './ProfessionalChatInterface.css';
@@ -62,7 +62,7 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
     }
   }, [propSelectedDoctor]);
 
-  // Clear chat when clearChat prop is true
+  // Show welcome message on component mount and when clearing chat
   useEffect(() => {
     if (clearChat) {
       setMessages([]);
@@ -72,8 +72,34 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
       setAppointmentDialogOpen(false);
       setHealthPackageDialogOpen(false);
       setCallbackFlow(false);
+      // Show welcome message after clearing
+      setTimeout(() => {
+        const welcomeResponse = createGreetingResponse();
+        setMessages([welcomeResponse]);
+      }, 300);
+    } else if (messages.length === 0) {
+      // Show welcome message only on initial mount
+      const welcomeResponse = createGreetingResponse();
+      setMessages([welcomeResponse]);
     }
   }, [clearChat]);
+
+  // Restart conversation function
+  const restartConversation = () => {
+    setMessages([]);
+    setInputMessage('');
+    setError(null);
+    setLoading(false);
+    setAppointmentDialogOpen(false);
+    setHealthPackageDialogOpen(false);
+    setCallbackFlow(false);
+    
+    // Show welcome message
+    setTimeout(() => {
+      const welcomeResponse = createGreetingResponse();
+      setMessages([welcomeResponse]);
+    }, 300);
+  };
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -425,14 +451,14 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
                     <Avatar className="welcome-avatar">
                       <SmartToy />
                     </Avatar>
-                    <Typography variant="h6" className="welcome-title">
-                      {BRANDING.AI_WELCOME_TITLE}
+                    <Typography variant="subtitle1" className="welcome-title">
+                      {UI_MESSAGES.GREETING_RESPONSES.WELCOME_MESSAGE}
                     </Typography>
-                    <Typography variant="body2" className="welcome-text">
-                      {BRANDING.AI_WELCOME_SUBTITLE}
+                    <Typography variant="caption" className="welcome-text">
+                      {UI_MESSAGES.GREETING_RESPONSES.WELCOME_SUBTITLE}
                     </Typography>
-                    <Typography variant="body2" className="welcome-question">
-                      {BRANDING.AI_WELCOME_QUESTION}
+                    <Typography variant="caption" className="welcome-question">
+                      {UI_MESSAGES.GREETING_RESPONSES.HELP_QUESTION}
                     </Typography>
                     <Box className="welcome-options">
                       {Object.entries(UI_MESSAGES.WELCOME_OPTIONS).map(([key, option]) => (
@@ -469,7 +495,7 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
                     message.content
                   ) : (
                     <Typography className="message-content">
-                      {message.content.split('\n').map((line, index) => {
+                      {typeof message.content === 'string' ? message.content.split('\n').map((line, index) => {
                         // Check if line contains numbered options
                         const optionMatch = line.match(/^(\d+)\)\s*(.+)/);
                         if (optionMatch) {
@@ -489,7 +515,7 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
                           );
                         }
                         return <div key={index}>{line}</div>;
-                      })}
+                      }) : message.content}
                     </Typography>
                   )}
                   
@@ -566,22 +592,15 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
               </IconButton>
             </Box>
             
-            {/* Quick Actions */}
-            <Box className="quick-actions">
-              <Button size="small" onClick={() => setInputMessage(UI_MESSAGES.QUICK_ACTIONS.HEADACHE)}>
-                {UI_MESSAGES.HEADACHE_LABEL}
-              </Button>
-              <Button size="small" onClick={() => setInputMessage(UI_MESSAGES.QUICK_ACTIONS.APPOINTMENT)}>
-                {UI_MESSAGES.APPOINTMENT_LABEL}
-              </Button>
-              <Button size="small" onClick={() => setInputMessage('I want to book a health checkup')}>
-                Health Checkup
-              </Button>
-              <Button size="small" onClick={() => setInputMessage(UI_MESSAGES.QUICK_ACTIONS.FEVER)}>
-                {UI_MESSAGES.FEVER_LABEL}
-              </Button>
-              <Button size="small" onClick={() => setInputMessage(UI_MESSAGES.QUICK_ACTIONS.EMERGENCY)}>
-                {UI_MESSAGES.EMERGENCY_LABEL}
+            {/* Restart Conversation Button */}
+            <Box className="restart-container">
+              <Button 
+                size="small" 
+                onClick={restartConversation}
+                className="restart-button"
+                startIcon={<SmartToy />}
+              >
+                Restart Conversation
               </Button>
             </Box>
           </Box>

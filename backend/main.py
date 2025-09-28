@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import uvicorn
 
-from database import get_db
+from database import get_db, init_db
 from models import Patient, Doctor, Appointment, Document, Questionnaire, ChatSession, Speciality, DoctorTimeSlots, HealthPackage, HealthPackageTest, CallbackRequest
 from schemas import (
     Patient as PatientSchema, PatientCreate, PatientUpdate,
@@ -45,6 +45,11 @@ app.add_middleware(
 
 # Initialize Enhanced RAG service
 rag_service = EnhancedRAGService()
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    init_db()
 
 # Health check endpoint
 @app.get("/health")
@@ -532,18 +537,29 @@ async def get_available_slots(doctor_id: int, date: str, db: Session = Depends(g
 @app.post("/patients", response_model=PatientSchema)
 async def create_patient(patient: PatientCreate, db: Session = Depends(get_db)):
     """Create a new patient"""
-    try:
-        # Create new patient (allow duplicate emails for appointment booking)
-        db_patient = Patient(**patient.dict())
-        db.add(db_patient)
-        db.commit()
-        db.refresh(db_patient)
-        
-        # Convert to Pydantic schema for response
-        return PatientSchema.from_orm(db_patient)
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating patient: {str(e)}")
+    import time
+    max_retries = 3
+    
+    for attempt in range(max_retries):
+        try:
+            # Create new patient (allow duplicate emails for appointment booking)
+            db_patient = Patient(**patient.dict())
+            db.add(db_patient)
+            db.commit()
+            db.refresh(db_patient)
+            
+            # Convert to Pydantic schema for response
+            return PatientSchema.from_orm(db_patient)
+        except Exception as e:
+            db.rollback()
+            error_msg = str(e)
+            
+            # Handle database lock with retry
+            if "database is locked" in error_msg and attempt < max_retries - 1:
+                time.sleep(0.1 * (2 ** attempt))  # Exponential backoff
+                continue
+            else:
+                raise HTTPException(status_code=500, detail=f"Error creating patient: {error_msg}")
 
 @app.get("/patients", response_model=List[PatientSchema])
 async def get_patients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
