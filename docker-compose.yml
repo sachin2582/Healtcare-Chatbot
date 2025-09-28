@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: healthcare_chatbot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/healthcare_chatbot
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SECRET_KEY: ${SECRET_KEY:-your_secret_key_here}
+      DEBUG: "False"
+      BACKEND_PORT: 8000
+      FRONTEND_PORT: ${FRONTEND_PORT:-3000}
+      DATABASE_PORT: 5432
+      CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-3000},http://localhost:5173
+      CHROMA_PERSIST_DIRECTORY: /app/chroma_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - chroma_data:/app/chroma_db
+    command: >
+      sh -c "python init_db.py &&
+             python sample_data.py &&
+             uvicorn main:app --host 0.0.0.0 --port 8000"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:${BACKEND_PORT:-8000}
+      REACT_APP_BACKEND_PORT: ${BACKEND_PORT:-8000}
+    depends_on:
+      - backend
+    command: >
+      sh -c "npm install &&
+             npm start"
+
+volumes:
+  postgres_data:
+  chroma_data:
