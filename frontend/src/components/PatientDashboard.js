@@ -171,7 +171,8 @@ const PatientDashboard = () => {
         )}
         
         <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-          Last Visit: {new Date(patient.last_visit).toLocaleDateString('en-US', { 
+          Last Visit: {new Date(patient.last_visit).toLocaleDateString('en-IN', { 
+            timeZone: 'Asia/Kolkata',
             year: 'numeric', 
             month: 'short', 
             day: '2-digit' 
@@ -222,7 +223,8 @@ const PatientDashboard = () => {
                 )}
               </TableCell>
               <TableCell>
-                {new Date(patient.last_visit).toLocaleDateString('en-US', { 
+                {new Date(patient.last_visit).toLocaleDateString('en-IN', { 
+                  timeZone: 'Asia/Kolkata',
                   year: 'numeric', 
                   month: 'short', 
                   day: '2-digit' 

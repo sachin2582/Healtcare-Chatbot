@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Bool
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime, date
+from timezone_utils import get_local_now
 
 Base = declarative_base()
 
@@ -24,8 +25,8 @@ class Patient(Base):
     medical_history = Column(Text)
     allergies = Column(Text)
     current_medications = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
     
     # Relationships
     appointments = relationship("Appointment", back_populates="patient")
@@ -49,7 +50,7 @@ class Speciality(Base):
     description = Column(Text)
     icon = Column(String(100))  # Icon name for UI
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
     
     # Relationships
     doctors = relationship("Doctor", back_populates="speciality")
@@ -67,7 +68,7 @@ class Doctor(Base):
     image_url = Column(String(500))  # URL to doctor's image
     image_data = Column(LargeBinary)  # Store image as binary data
     is_available = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
     
     # Relationships
     speciality = relationship("Speciality", back_populates="doctors")
@@ -83,7 +84,7 @@ class Appointment(Base):
     date = Column(DateTime, nullable=False)
     status = Column(String(50), default="scheduled")  # scheduled, completed, cancelled
     notes = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
     
     # Relationships
     patient = relationship("Patient", back_populates="appointments")
@@ -96,8 +97,8 @@ class Document(Base):
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
     document_type = Column(String(100), default="guideline")  # guideline, note, protocol
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
 
 class Questionnaire(Base):
     __tablename__ = "questionnaires"
@@ -109,8 +110,8 @@ class Questionnaire(Base):
     category = Column(String(100), default="general")  # general, emergency, appointment, symptoms
     priority = Column(Integer, default=1)  # 1=highest, 5=lowest
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
 
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
@@ -121,8 +122,8 @@ class ChatSession(Base):
     session_data = Column(Text)  # JSON string to store conversation context
     current_questionnaire_id = Column(Integer, ForeignKey("questionnaires.id"))
     status = Column(String(50), default="active")  # active, completed, abandoned
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
 
 class DoctorTimeSlots(Base):
     __tablename__ = "doctor_time_slots"
@@ -134,8 +135,8 @@ class DoctorTimeSlots(Base):
     end_time = Column(Time, nullable=False)    # e.g., 17:00:00
     slot_duration_minutes = Column(Integer, default=30)  # Duration of each slot
     is_available = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
     
     # Relationships
     doctor = relationship("Doctor", back_populates="time_slots")
@@ -157,8 +158,8 @@ class HealthPackage(Base):
     report_delivery_days = Column(Integer, default=1)  # Days to deliver report
     is_active = Column(Boolean, default=True)
     image_url = Column(String(500))  # URL to package image
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
     
     # Relationships
     tests = relationship("HealthPackageTest", back_populates="package")
@@ -172,7 +173,7 @@ class HealthPackageTest(Base):
     test_category = Column(String(100), nullable=False)  # e.g., "Blood Test", "Imaging", "Cardiac"
     test_description = Column(Text, nullable=True)
     is_optional = Column(Boolean, default=False)  # Whether this test is optional in the package
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
     
     # Relationships
     package = relationship("HealthPackage", back_populates="tests")
@@ -183,7 +184,7 @@ class HealthPackageBooking(Base):
     id = Column(Integer, primary_key=True, index=True)
     package_id = Column(Integer, ForeignKey("health_packages.id"), nullable=False)
     patient_name = Column(String(255), nullable=False)
-    patient_email = Column(String(255), nullable=False)
+    patient_email = Column(String(255), nullable=True)
     patient_phone = Column(String(20), nullable=False)
     patient_age = Column(Integer, nullable=False)
     patient_gender = Column(String(10), nullable=False)
@@ -194,8 +195,8 @@ class HealthPackageBooking(Base):
     confirmation_number = Column(String(20), unique=True, nullable=False)
     payment_status = Column(String(20), default="pending")  # pending, paid, failed, refunded
     notes = Column(Text, nullable=True)  # Additional notes from user
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
     booking_date = Column(DateTime, nullable=False)  # Actual booking datetime
     
     # Relationships
@@ -209,7 +210,24 @@ class CallbackRequest(Base):
     status = Column(String(20), default="pending")  # pending, contacted, completed, cancelled
     preferred_time = Column(String(50), nullable=True)  # e.g., "Morning", "Afternoon", "Evening"
     notes = Column(Text, nullable=True)  # Additional notes from user
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
     contacted_at = Column(DateTime, nullable=True)  # When the callback was made
     executive_notes = Column(Text, nullable=True)  # Notes from the executive who made the call
+
+class ChatButton(Base):
+    __tablename__ = "chat_buttons"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    button_text = Column(String(100), nullable=False)  # Text displayed on button
+    button_action = Column(String(50), nullable=False)  # Action type: 'appointment', 'health_package', 'callback', 'custom'
+    button_value = Column(String(200), nullable=True)  # Value/parameter for the action
+    button_icon = Column(String(50), nullable=True)  # Icon name (e.g., 'calendar_today', 'local_hospital')
+    button_color = Column(String(20), default="primary")  # Button color: 'primary', 'secondary', 'success', 'warning', 'error'
+    button_variant = Column(String(20), default="contained")  # Button variant: 'contained', 'outlined', 'text'
+    display_order = Column(Integer, default=0)  # Order of display
+    is_active = Column(Boolean, default=True)  # Whether button is active
+    category = Column(String(50), nullable=True)  # Button category for grouping
+    description = Column(Text, nullable=True)  # Description of what the button does
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)

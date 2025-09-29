@@ -29,6 +29,7 @@ import {
 import { useAppContext } from '../contexts/AppContext';
 import chatService from '../services/chatService';
 import callbackService from '../services/callbackService';
+import chatButtonService from '../services/chatButtonService';
 import { UI_MESSAGES } from '../config/textConfig';
 import AppointmentFlow from './AppointmentFlow';
 import HealthPackageBooking from './HealthPackageBooking';
@@ -46,6 +47,8 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
   const [healthPackageDialogOpen, setHealthPackageDialogOpen] = useState(false);
   const [callbackFlow, setCallbackFlow] = useState(false);
+  const [dynamicButtons, setDynamicButtons] = useState([]);
+  const [buttonsLoading, setButtonsLoading] = useState(true);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -55,6 +58,25 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Fetch dynamic buttons on component mount
+  useEffect(() => {
+    const fetchDynamicButtons = async () => {
+      try {
+        setButtonsLoading(true);
+        const buttons = await chatButtonService.getActiveButtons();
+        setDynamicButtons(buttons);
+      } catch (error) {
+        console.error('Error fetching dynamic buttons:', error);
+        // Fallback to static buttons if API fails
+        setDynamicButtons([]);
+      } finally {
+        setButtonsLoading(false);
+      }
+    };
+
+    fetchDynamicButtons();
+  }, []);
 
   useEffect(() => {
     if (propSelectedDoctor) {
@@ -226,7 +248,8 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
       );
 
       if (result.error) {
-        setError(result.error.message || 'Failed to send message');
+        const errorMessage = result.error?.message || result.error?.toString() || 'Failed to send message';
+        setError(errorMessage);
         setMessages(prev => [...prev, result.botResponse]);
       } else {
         setMessages(prev => [...prev, result.botResponse]);
@@ -278,7 +301,8 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
         selectedDoctor ? parseInt(selectedDoctor) : null
       ).then(result => {
         if (result.error) {
-          setError(result.error.message || 'Failed to send message');
+          const errorMessage = result.error?.message || result.error?.toString() || 'Failed to send message';
+          setError(errorMessage);
           setMessages(prev => [...prev, result.botResponse]);
         } else {
           setMessages(prev => [...prev, result.botResponse]);
@@ -302,6 +326,26 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
     }, 100);
   };
 
+  // Handle dynamic button clicks
+  const handleDynamicButtonClick = (button) => {
+    const actionText = button.button_value || button.button_text;
+    setInputMessage(actionText);
+    
+    // Handle specific button actions
+    if (button.button_action === 'appointment') {
+      setAppointmentDialogOpen(true);
+    } else if (button.button_action === 'health_package') {
+      setHealthPackageDialogOpen(true);
+    } else if (button.button_action === 'callback') {
+      setCallbackFlow(true);
+    } else {
+      // For custom actions, send the message
+      setTimeout(() => {
+        handleOptionClick(actionText);
+      }, 100);
+    }
+  };
+
   const getPatientName = (patientId) => {
     const patient = patients.find(p => p.id === parseInt(patientId));
     return patient ? patient.name : 'Unknown Patient';
@@ -313,7 +357,8 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
   };
 
   const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString('en-US', { 
+    return new Date(timestamp).toLocaleTimeString('en-IN', { 
+      timeZone: 'Asia/Kolkata',
       hour: '2-digit', 
       minute: '2-digit',
       hour12: false 
@@ -327,7 +372,7 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
     return greetingPatterns.some(pattern => lowerMessage.includes(pattern));
   };
 
-  // Create greeting response with buttons
+  // Create greeting response with dynamic buttons
   const createGreetingResponse = () => {
     return {
       id: Date.now(),
@@ -340,29 +385,80 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
             {UI_MESSAGES.GREETING_RESPONSES.HELP_QUESTION}
           </Typography>
           <Box className="welcome-options">
-            {Object.entries(UI_MESSAGES.WELCOME_OPTIONS).map(([key, option]) => (
-              <Button
-                key={key}
-                variant="outlined"
-                className="welcome-option-button"
-                onClick={() => setInputMessage(option.action)}
-                sx={{
-                  textTransform: 'none',
-                  minHeight: '60px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Box className="option-content">
-                  <span className="option-icon">{option.icon}</span>
-                  <Typography className="option-label">
-                    {option.label}
-                  </Typography>
-                </Box>
-              </Button>
-            ))}
+            {buttonsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : dynamicButtons.length > 0 ? (
+              dynamicButtons.map((button) => (
+                <Button
+                  key={button.id}
+                  variant={button.button_variant || "outlined"}
+                  color={button.button_color || "primary"}
+                  className="welcome-option-button"
+                  onClick={() => handleDynamicButtonClick(button)}
+                  startIcon={button.button_icon ? <span>{button.button_icon}</span> : null}
+                  sx={{
+                    textTransform: 'none',
+                    minHeight: '60px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 1,
+                    p: 2,
+                    borderRadius: 2,
+                    border: '2px solid #e2e8f0',
+                    backgroundColor: 'white',
+                    color: '#2d3748',
+                    '&:hover': {
+                      backgroundColor: '#f7fafc',
+                      borderColor: '#3b82f6',
+                      color: '#1e40af',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 25px rgba(59, 130, 246, 0.15)',
+                    },
+                    transition: 'all 0.2s ease-in-out',
+                  }}
+                >
+                  <Box className="option-content">
+                    <Typography className="option-label" variant="body2" sx={{ fontWeight: 600, fontSize: '14px' }}>
+                      {button.button_text}
+                    </Typography>
+                    {button.description && (
+                      <Typography variant="caption" sx={{ color: '#718096', fontSize: '12px', textAlign: 'center' }}>
+                        {button.description}
+                      </Typography>
+                    )}
+                  </Box>
+                </Button>
+              ))
+            ) : (
+              // Fallback to static buttons if no dynamic buttons are available
+              Object.entries(UI_MESSAGES.WELCOME_OPTIONS).map(([key, option]) => (
+                <Button
+                  key={key}
+                  variant="outlined"
+                  className="welcome-option-button"
+                  onClick={() => setInputMessage(option.action)}
+                  sx={{
+                    textTransform: 'none',
+                    minHeight: '60px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Box className="option-content">
+                    <span className="option-icon">{option.icon}</span>
+                    <Typography className="option-label">
+                      {option.label}
+                    </Typography>
+                  </Box>
+                </Button>
+              ))
+            )}
           </Box>
         </Box>
       ),
@@ -374,7 +470,14 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
 
 
   return (
-    <Box className={`professional-chat-container ${isModal ? 'modal' : ''}`}>
+    <Box 
+      className={`professional-chat-container ${isModal ? 'modal' : ''}`}
+      style={{
+        maxWidth: '100%',
+        overflow: 'hidden',
+        boxSizing: 'border-box'
+      }}
+    >
       {/* Chat Header */}
       <Box className="chat-header">
         <Box className="header-left">
@@ -433,7 +536,14 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
           )}
 
           {/* Messages Area */}
-          <Box className="messages-container">
+          <Box 
+            className="messages-container"
+            style={{
+              maxWidth: '100%',
+              overflowX: 'hidden',
+              boxSizing: 'border-box'
+            }}
+          >
             {messages.filter(msg => msg.sender === 'user').length === 0 && (
               <div style={{
                 display: 'flex',
@@ -593,12 +703,37 @@ const ProfessionalChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose
               <Box
                 key={message.id}
                 className={`message-wrapper ${message.sender}`}
+                style={{
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box'
+                }}
               >
-                <Box className="message-bubble">
+                <Box 
+                  className="message-bubble"
+                  style={{
+                    maxWidth: message.sender === 'assistant' ? '80%' : '95%',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word',
+                    whiteSpace: message.sender === 'user' ? 'nowrap' : 'normal',
+                    overflow: 'hidden'
+                  }}
+                >
                   {message.isGreetingResponse ? (
                     message.content
                   ) : (
-                    <Typography className="message-content">
+                    <Typography 
+                      className="message-content"
+                      style={{
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word',
+                        whiteSpace: message.sender === 'user' ? 'nowrap' : 'pre-wrap',
+                        overflow: 'hidden',
+                        maxWidth: '100%'
+                      }}
+                    >
                       {typeof message.content === 'string' ? message.content.split('\n').map((line, index) => {
                         // Check if line contains numbered options
                         const optionMatch = line.match(/^(\d+)\)\s*(.+)/);

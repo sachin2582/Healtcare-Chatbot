@@ -32,7 +32,8 @@ const SpecialitySelection = ({ onSpecialitySelect, onBack }) => {
       setSpecialities(data);
     } catch (err) {
       console.error('❌ Error loading specialities:', err);
-      setError(`Failed to load specialities: ${err.message}`);
+      const errorMessage = err?.message || err?.toString() || 'Unknown error';
+      setError(`Failed to load specialities: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

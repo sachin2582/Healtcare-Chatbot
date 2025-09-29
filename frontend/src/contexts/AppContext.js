@@ -46,7 +46,8 @@ export const AppProvider = ({ children }) => {
       
     } catch (err) {
       console.error('Error fetching application data:', err);
-      setError(err.message || 'Failed to load application data');
+      const errorMessage = err?.message || err?.toString() || 'Failed to load application data';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

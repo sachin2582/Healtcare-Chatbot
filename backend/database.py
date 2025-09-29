@@ -36,6 +36,6 @@ def init_db():
             conn.execute(text("PRAGMA temp_store=MEMORY"))
             conn.execute(text("PRAGMA locking_mode=NORMAL"))
             conn.commit()
-        print("✅ Database initialized with optimal settings")
+        print("Database initialized with optimal settings")
     except Exception as e:
-        print(f"⚠️ Warning: Could not optimize database settings: {e}")
+        print(f"Warning: Could not optimize database settings: {e}")

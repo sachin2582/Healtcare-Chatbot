@@ -170,7 +170,8 @@ const DocumentManagement = () => {
         </Typography>
         
         <Typography variant="caption" color="text.secondary">
-          Created: {new Date(document.created_at).toLocaleDateString('en-US', { 
+          Created: {new Date(document.created_at).toLocaleDateString('en-IN', { 
+            timeZone: 'Asia/Kolkata',
             year: 'numeric', 
             month: 'short', 
             day: '2-digit' 

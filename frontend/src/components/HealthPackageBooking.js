@@ -27,6 +27,10 @@ import {
   Paper,
   Stack,
   IconButton,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   ExpandMore,
@@ -53,6 +57,8 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
     patient_name: '',
     patient_phone: '',
     patient_email: '',
+    patient_age: '',
+    patient_gender: '',
     preferred_date: '',
     preferred_time: '',
     home_collection: false,
@@ -74,7 +80,8 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
       const data = await healthPackageService.getHealthPackages();
       setPackages(data);
     } catch (err) {
-      setError(err.message || 'Failed to load health packages');
+      const errorMessage = err?.message || err?.toString() || 'Failed to load health packages';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -87,7 +94,8 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
       setBookingData(prev => ({ ...prev, package_id: packageId }));
       setBookingDialogOpen(true);
     } catch (err) {
-      setError(err.message || 'Failed to load package details');
+      const errorMessage = err?.message || err?.toString() || 'Failed to load package details';
+      setError(errorMessage);
     }
   };
 
@@ -97,7 +105,8 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
       setSelectedPackage(packageData);
       setPackageDetailsDialogOpen(true);
     } catch (err) {
-      setError(err.message || 'Failed to load package details');
+      const errorMessage = err?.message || err?.toString() || 'Failed to load package details';
+      setError(errorMessage);
     }
   };
 
@@ -107,7 +116,7 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
       setError(null);
 
       // Basic validation
-      if (!bookingData.patient_name || !bookingData.patient_phone || !bookingData.preferred_date || !bookingData.preferred_time) {
+      if (!bookingData.patient_name || !bookingData.patient_phone || !bookingData.patient_age || !bookingData.patient_gender || !bookingData.preferred_date || !bookingData.preferred_time) {
         setError('Please fill in all required fields');
         return;
       }
@@ -120,7 +129,8 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
         onBookingComplete(result);
       }
     } catch (err) {
-      setError(err.message || 'Failed to book health package');
+      const errorMessage = err?.message || err?.toString() || 'Failed to book health package';
+      setError(errorMessage);
     } finally {
       setBookingLoading(false);
     }
@@ -735,6 +745,32 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
                 value={bookingData.patient_email}
                 onChange={(e) => setBookingData(prev => ({ ...prev, patient_email: e.target.value }))}
               />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Age *"
+                type="number"
+                value={bookingData.patient_age}
+                onChange={(e) => setBookingData(prev => ({ ...prev, patient_age: e.target.value }))}
+                inputProps={{ min: 1, max: 120 }}
+                required
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Gender *</InputLabel>
+                <Select
+                  value={bookingData.patient_gender}
+                  onChange={(e) => setBookingData(prev => ({ ...prev, patient_gender: e.target.value }))}
+                  label="Gender *"
+                >
+                  <MenuItem value="">Select Gender</MenuItem>
+                  <MenuItem value="Male">Male</MenuItem>
+                  <MenuItem value="Female">Female</MenuItem>
+                  <MenuItem value="Other">Other</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField

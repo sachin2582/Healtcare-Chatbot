@@ -56,7 +56,9 @@ class ChatService {
       return {
         userMessage: null,
         botResponse: errorResponse,
-        error: error
+        error: {
+          message: error?.message || error?.toString() || 'An unknown error occurred'
+        }
       };
     }
   }

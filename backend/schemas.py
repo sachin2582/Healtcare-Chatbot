@@ -309,7 +309,7 @@ class HealthPackageWithTests(HealthPackage):
 class HealthPackageBookingRequest(BaseModel):
     package_id: int
     patient_name: str
-    patient_email: str
+    patient_email: Optional[str] = None
     patient_phone: str
     patient_age: int
     patient_gender: str
@@ -406,3 +406,46 @@ class CallbackRequestResponse(BaseModel):
     status: str
     message: str
     created_at: datetime
+
+# Chat Button Schemas
+class ChatButtonCreate(BaseModel):
+    button_text: str
+    button_action: str
+    button_value: Optional[str] = None
+    button_icon: Optional[str] = None
+    button_color: str = "primary"
+    button_variant: str = "contained"
+    display_order: int = 0
+    is_active: bool = True
+    category: Optional[str] = None
+    description: Optional[str] = None
+
+class ChatButtonUpdate(BaseModel):
+    button_text: Optional[str] = None
+    button_action: Optional[str] = None
+    button_value: Optional[str] = None
+    button_icon: Optional[str] = None
+    button_color: Optional[str] = None
+    button_variant: Optional[str] = None
+    display_order: Optional[int] = None
+    is_active: Optional[bool] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+
+class ChatButtonSchema(BaseModel):
+    id: int
+    button_text: str
+    button_action: str
+    button_value: Optional[str] = None
+    button_icon: Optional[str] = None
+    button_color: str
+    button_variant: str
+    display_order: int
+    is_active: bool
+    category: Optional[str] = None
+    description: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

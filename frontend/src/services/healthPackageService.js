@@ -31,7 +31,7 @@ class HealthPackageService {
       return data;
     } catch (error) {
       console.error('❌ Error fetching health packages:', error);
-      throw error;
+      throw new Error(error.message || error.toString() || 'Failed to fetch health packages');
     }
   }
 
@@ -54,7 +54,7 @@ class HealthPackageService {
       return data;
     } catch (error) {
       console.error('❌ Error fetching health package:', error);
-      throw error;
+      throw new Error(error.message || error.toString() || 'Failed to fetch health package');
     }
   }
 
@@ -83,7 +83,7 @@ class HealthPackageService {
       return data;
     } catch (error) {
       console.error('❌ Error booking health package:', error);
-      throw error;
+      throw new Error(error.message || error.toString() || 'Failed to book health package');
     }
   }
 }

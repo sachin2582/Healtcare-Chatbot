@@ -73,7 +73,8 @@ const PatientInfoForm = ({ onPatientCreated, onBack, existingPatient = null }) =
         onPatientCreated(result);
       }
     } catch (err) {
-      setError(err.message || 'Failed to save patient information. Please try again.');
+      const errorMessage = err?.message || err?.toString() || 'Failed to save patient information. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

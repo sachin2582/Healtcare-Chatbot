@@ -46,7 +46,8 @@ const AppointmentBooking = ({ doctor, speciality, patientId, onPatientCreated, o
       setAvailableSlots(slotsData.available_slots || []);
     } catch (err) {
       console.error('Error loading available slots:', err);
-      setError(`Failed to load available time slots: ${err.message}`);
+      const errorMessage = err?.message || err?.toString() || 'Unknown error';
+      setError(`Failed to load available time slots: ${errorMessage}`);
       setAvailableSlots([]);
     } finally {
       setLoadingSlots(false);
@@ -98,7 +99,8 @@ const AppointmentBooking = ({ doctor, speciality, patientId, onPatientCreated, o
       
       onBookingComplete(result);
     } catch (err) {
-      setError(err.message || 'Failed to book appointment. Please try again.');
+      const errorMessage = err?.message || err?.toString() || 'Failed to book appointment. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

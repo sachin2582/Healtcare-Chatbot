@@ -233,7 +233,8 @@ const ChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose, clearChat 
       );
 
       if (result.error) {
-        setError(result.error.message || 'Failed to send message');
+        const errorMessage = result.error?.message || result.error?.toString() || 'Failed to send message';
+        setError(errorMessage);
         setMessages(prev => [...prev, result.botResponse]);
       } else {
         setMessages(prev => [...prev, result.botResponse]);
@@ -618,7 +619,8 @@ const ChatInterface = ({ selectedDoctor: propSelectedDoctor, onClose, clearChat 
               )}
 
               <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.6 }}>
-                {new Date(message.timestamp).toLocaleTimeString('en-US', { 
+                {new Date(message.timestamp).toLocaleTimeString('en-IN', { 
+                  timeZone: 'Asia/Kolkata',
                   hour: '2-digit', 
                   minute: '2-digit',
                   hour12: false 

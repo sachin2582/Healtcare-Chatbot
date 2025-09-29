@@ -11,6 +11,9 @@
   border: 1px solid #e8f0fe;
   position: relative;
   z-index: 1000;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .professional-chat-container.modal {
@@ -105,6 +108,7 @@
 .messages-container {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   background: #fafbfc;
   display: flex;
@@ -113,6 +117,8 @@
   min-height: 0;
   position: relative;
   z-index: 1000;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Custom scrollbar */
@@ -366,7 +372,7 @@
 
 /* Message Bubble - Professional Style */
 .message-bubble {
-  max-width: 75% !important;
+  max-width: 95% !important;
   min-width: 120px !important;
   background: white !important;
   border-radius: 18px !important;
@@ -380,6 +386,23 @@
   font-size: 14px !important;
   margin: 0 !important;
   display: inline-block !important;
+  width: fit-content !important;
+  max-width: min(95%, 600px) !important;
+  overflow: visible !important;
+}
+
+/* User message bubbles - prevent wrapping for short text */
+.message-wrapper.user .message-bubble {
+  white-space: nowrap !important;
+}
+
+/* Assistant message bubbles - allow normal wrapping but constrain width */
+.message-wrapper.assistant .message-bubble {
+  white-space: normal !important;
+  max-width: 80% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
 }
 
 .message-wrapper.user .message-bubble {
@@ -427,6 +450,9 @@
   font-weight: 400 !important;
   font-family: 'Roboto', sans-serif !important;
   display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
 }
 
 /* Override Material-UI Typography styles */
@@ -440,9 +466,12 @@
 /* Ensure clean message layout */
 .message-wrapper {
   width: 100% !important;
+  max-width: 100% !important;
   display: flex !important;
   margin-bottom: 8px !important;
   flex-direction: column !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
 }
 
 .message-wrapper.user {
@@ -451,11 +480,13 @@
 
 .message-wrapper.assistant {
   align-items: flex-start !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
 }
 
 /* Force clean message styling - Override everything */
 .professional-chat-interface .message-bubble {
-  max-width: 75% !important;
+  max-width: 95% !important;
   min-width: 120px !important;
   background: white !important;
   border-radius: 18px !important;
@@ -469,6 +500,23 @@
   font-size: 14px !important;
   margin: 0 !important;
   display: inline-block !important;
+  width: fit-content !important;
+  max-width: min(95%, 600px) !important;
+  overflow: visible !important;
+}
+
+/* User message bubbles - prevent wrapping for short text */
+.professional-chat-interface .message-wrapper.user .message-bubble {
+  white-space: nowrap !important;
+}
+
+/* Assistant message bubbles - allow normal wrapping but constrain width */
+.professional-chat-interface .message-wrapper.assistant .message-bubble {
+  white-space: normal !important;
+  max-width: 80% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
 }
 
 .professional-chat-interface .message-wrapper.user .message-bubble {
@@ -499,6 +547,23 @@
   width: 100% !important;
   display: block !important;
   transition: color 0.2s ease !important;
+  word-break: break-all !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Specific styling for user messages - prevent wrapping for short text like mobile numbers */
+.message-wrapper.user .message-content {
+  white-space: nowrap !important;
+  overflow: visible !important;
+  word-break: normal !important;
+}
+
+/* Specific styling for assistant messages - allow normal wrapping */
+.message-wrapper.assistant .message-content {
+  white-space: pre-wrap !important;
+  overflow: visible !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
 }
 
 .option-link:hover {
@@ -776,9 +841,24 @@
   }
 
   .message-bubble {
-    max-width: 80%;
+    max-width: 90%;
     min-width: 50px;
     padding: 8px 12px;
+    width: fit-content;
+    max-width: min(90%, 500px);
+    overflow: visible;
+  }
+
+  .message-wrapper.user .message-bubble {
+    white-space: nowrap;
+  }
+
+  .message-wrapper.assistant .message-bubble {
+    white-space: normal;
+    max-width: 80%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 
   .message-content {
@@ -887,9 +967,24 @@
   }
 
   .message-bubble {
-    max-width: 85%;
+    max-width: 95%;
     min-width: 45px;
     padding: 6px 10px;
+    width: fit-content;
+    max-width: min(95%, 400px);
+    overflow: visible;
+  }
+
+  .message-wrapper.user .message-bubble {
+    white-space: nowrap;
+  }
+
+  .message-wrapper.assistant .message-bubble {
+    white-space: normal;
+    max-width: 80%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 
   .message-content {

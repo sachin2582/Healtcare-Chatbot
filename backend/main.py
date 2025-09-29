@@ -5,7 +5,7 @@ from typing import List, Optional
 import uvicorn
 
 from database import get_db, init_db
-from models import Patient, Doctor, Appointment, Document, Questionnaire, ChatSession, Speciality, DoctorTimeSlots, HealthPackage, HealthPackageTest, HealthPackageBooking, CallbackRequest
+from models import Patient, Doctor, Appointment, Document, Questionnaire, ChatSession, Speciality, DoctorTimeSlots, HealthPackage, HealthPackageTest, HealthPackageBooking, CallbackRequest, ChatButton
 from schemas import (
     Patient as PatientSchema, PatientCreate, PatientUpdate,
     Doctor as DoctorSchema, DoctorCreate,
@@ -22,11 +22,13 @@ from schemas import (
     HealthPackageTest as HealthPackageTestSchema, HealthPackageTestCreate,
     HealthPackageWithTests, HealthPackageBookingRequest, HealthPackageBookingResponse,
     HealthPackageBooking as HealthPackageBookingSchema, HealthPackageBookingCreate,
-    CallbackRequest as CallbackRequestSchema, CallbackRequestCreate, CallbackRequestResponse
+    CallbackRequest as CallbackRequestSchema, CallbackRequestCreate, CallbackRequestResponse,
+    ChatButtonSchema, ChatButtonCreate, ChatButtonUpdate
 )
 from rag_service_enhanced import EnhancedRAGService
 from config import CORS_ORIGINS
 from text_config import SystemMessages, ErrorMessages
+from timezone_utils import get_local_now
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -710,8 +712,8 @@ async def update_health_package_booking(
             if hasattr(booking, field):
                 setattr(booking, field, value)
         
-        from datetime import datetime
-        booking.updated_at = datetime.utcnow()
+        from timezone_utils import get_local_now
+        booking.updated_at = get_local_now()
         
         db.commit()
         db.refresh(booking)
@@ -912,6 +914,142 @@ async def update_callback_request(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating callback request: {str(e)}")
+
+# Chat Button Endpoints
+@app.get("/chat-buttons", response_model=List[ChatButtonSchema])
+async def get_chat_buttons(
+    is_active: Optional[bool] = None,
+    category: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get all chat buttons, optionally filtered by active status and category"""
+    try:
+        query = db.query(ChatButton)
+        
+        if is_active is not None:
+            query = query.filter(ChatButton.is_active == is_active)
+        
+        if category:
+            query = query.filter(ChatButton.category == category)
+        
+        buttons = query.order_by(ChatButton.display_order, ChatButton.created_at).all()
+        return buttons
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching chat buttons: {str(e)}")
+
+@app.get("/chat-buttons/active", response_model=List[ChatButtonSchema])
+async def get_active_chat_buttons(db: Session = Depends(get_db)):
+    """Get all active chat buttons ordered by display_order"""
+    try:
+        buttons = db.query(ChatButton).filter(
+            ChatButton.is_active == True
+        ).order_by(ChatButton.display_order, ChatButton.created_at).all()
+        return buttons
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching active chat buttons: {str(e)}")
+
+@app.post("/chat-buttons", response_model=ChatButtonSchema)
+async def create_chat_button(
+    button: ChatButtonCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new chat button"""
+    try:
+        db_button = ChatButton(**button.dict())
+        db.add(db_button)
+        db.commit()
+        db.refresh(db_button)
+        return db_button
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating chat button: {str(e)}")
+
+@app.get("/chat-buttons/{button_id}", response_model=ChatButtonSchema)
+async def get_chat_button(button_id: int, db: Session = Depends(get_db)):
+    """Get a specific chat button by ID"""
+    try:
+        button = db.query(ChatButton).filter(ChatButton.id == button_id).first()
+        if not button:
+            raise HTTPException(status_code=404, detail="Chat button not found")
+        return button
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching chat button: {str(e)}")
+
+@app.put("/chat-buttons/{button_id}", response_model=ChatButtonSchema)
+async def update_chat_button(
+    button_id: int,
+    button_update: ChatButtonUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update a chat button"""
+    try:
+        button = db.query(ChatButton).filter(ChatButton.id == button_id).first()
+        if not button:
+            raise HTTPException(status_code=404, detail="Chat button not found")
+        
+        # Update fields if provided
+        update_data = button_update.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            if hasattr(button, field):
+                setattr(button, field, value)
+        
+        button.updated_at = get_local_now()
+        db.commit()
+        db.refresh(button)
+        
+        return button
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating chat button: {str(e)}")
+
+@app.delete("/chat-buttons/{button_id}")
+async def delete_chat_button(button_id: int, db: Session = Depends(get_db)):
+    """Delete a chat button"""
+    try:
+        button = db.query(ChatButton).filter(ChatButton.id == button_id).first()
+        if not button:
+            raise HTTPException(status_code=404, detail="Chat button not found")
+        
+        db.delete(button)
+        db.commit()
+        
+        return {"message": "Chat button deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting chat button: {str(e)}")
+
+@app.patch("/chat-buttons/{button_id}/toggle", response_model=ChatButtonSchema)
+async def toggle_chat_button_status(button_id: int, db: Session = Depends(get_db)):
+    """Toggle the active status of a chat button"""
+    try:
+        button = db.query(ChatButton).filter(ChatButton.id == button_id).first()
+        if not button:
+            raise HTTPException(status_code=404, detail="Chat button not found")
+        
+        button.is_active = not button.is_active
+        button.updated_at = get_local_now()
+        db.commit()
+        db.refresh(button)
+        
+        return button
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error toggling chat button status: {str(e)}")
 
 if __name__ == "__main__":
     from config import BACKEND_PORT
