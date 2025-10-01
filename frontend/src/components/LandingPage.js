@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import ChatInterface from './ChatInterface';
 import FloatingChatbot from './FloatingChatbot';
+import CompleteAdminPanel from './CompleteAdminPanel';
 import { useAppContext } from '../contexts/AppContext';
 import { BRANDING, SERVICES, FALLBACK_DOCTORS, BUTTON_LABELS } from '../config/textConfig';
 import './LandingPage.css';
@@ -10,6 +12,8 @@ const LandingPage = () => {
   const [showChatbot, setShowChatbot] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [clearChat, setClearChat] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const location = useLocation();
 
   // Use API doctors if available, otherwise fallback
   const displayDoctors = doctors.length > 0 ? doctors : FALLBACK_DOCTORS;
@@ -74,6 +78,20 @@ const LandingPage = () => {
               </button>
               <button className="btn-secondary">
                 Learn More
+              </button>
+              <button 
+                onClick={() => setShowAdmin(true)}
+                style={{
+                  background: 'transparent',
+                  border: '2px solid white',
+                  color: 'white',
+                  padding: '10px 20px',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  marginLeft: '10px'
+                }}
+              >
+                🔧 Admin Panel
               </button>
             </div>
           </div>
@@ -234,6 +252,47 @@ const LandingPage = () => {
 
       {/* Floating Chatbot Widget */}
       <FloatingChatbot />
+
+      {/* Admin Panel Modal */}
+      {showAdmin && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            width: '95%',
+            height: '90%',
+            backgroundColor: 'white',
+            borderRadius: '10px',
+            position: 'relative'
+          }}>
+            <button 
+              onClick={() => setShowAdmin(false)}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '15px',
+                background: 'none',
+                border: 'none',
+                fontSize: '30px',
+                cursor: 'pointer',
+                zIndex: 10000
+              }}
+            >
+              ×
+            </button>
+            <CompleteAdminPanel />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

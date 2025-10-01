@@ -47,7 +47,7 @@ export const BRANDING = {
   // Welcome Button Options
   WELCOME_OPTIONS: {
     GENERAL_HEALTH: {
-      label: "Book a Health Checkup1234",
+      label: "Book a Health Checkup",
       description: "Browse and book comprehensive health checkup packages",
       icon: "🏥",
       action: "I want to book a health checkup"

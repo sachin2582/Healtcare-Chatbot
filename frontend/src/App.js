@@ -1,43 +1,52 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { Box } from '@mui/material';
+import { CssBaseline, Box } from '@mui/material';
 
-import { AppProvider } from './contexts/AppContext';
+// Components
 import LandingPage from './components/LandingPage';
 import ProfessionalChatInterface from './components/ProfessionalChatInterface';
-import PatientDashboard from './components/PatientDashboard';
-import DocumentManagement from './components/DocumentManagement';
-import Navigation from './components/Navigation';
 import FloatingChatbot from './components/FloatingChatbot';
+import AdminDashboard from './components/admin/AdminDashboard';
+import CompleteAdminPanel from './components/CompleteAdminPanel';
 
+// Context
+import { AppProvider } from './contexts/AppContext';
+
+// Services
+import { patientService } from './services/patientService';
+import doctorService from './services/doctorService';
+
+// Theme
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#0f6c3f',
+      main: '#1e40af',
     },
     secondary: {
-      main: '#ff6f3c',
+      main: '#64748b',
     },
     background: {
-      default: '#f3f7f4',
-      paper: '#ffffff',
+      default: '#f8fafc',
     },
   },
   typography: {
-    fontFamily: 'Roboto, Arial, sans-serif',
-    h6: {
-      fontWeight: 600,
-    },
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
           textTransform: 'none',
-          paddingInline: 20,
+          borderRadius: 8,
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
         },
       },
     },
@@ -45,51 +54,78 @@ const theme = createTheme({
 });
 
 function App() {
+  const [patients, setPatients] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      const [patientsData, doctorsData] = await Promise.all([
+        patientService.getPatients(),
+        doctorService.getDoctors()
+      ]);
+      
+      setPatients(patientsData);
+      setDoctors(doctorsData);
+    } catch (err) {
+      console.error('Error loading initial data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const contextValue = {
+    patients,
+    doctors,
+    loading,
+    error,
+    refreshData: loadInitialData
+  };
+
+  if (loading) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box 
+          display="flex" 
+          justifyContent="center" 
+          alignItems="center" 
+          minHeight="100vh"
+        >
+          Loading...
+        </Box>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AppProvider>
+      <AppProvider value={contextValue}>
         <Router>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route 
-              path="/chat" 
-              element={
-                <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                  <Navigation />
-                  <Box sx={{ flex: 1 }}>
-                    <ProfessionalChatInterface />
-                  </Box>
-                  <FloatingChatbot />
-                </Box>
-              } 
-            />
-            <Route 
-              path="/patients" 
-              element={
-                <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                  <Navigation />
-                  <Box sx={{ flex: 1 }}>
-                    <PatientDashboard />
-                  </Box>
-                  <FloatingChatbot />
-                </Box>
-              } 
-            />
-            <Route 
-              path="/documents" 
-              element={
-                <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                  <Navigation />
-                  <Box sx={{ flex: 1 }}>
-                    <DocumentManagement />
-                  </Box>
-                  <FloatingChatbot />
-                </Box>
-              } 
-            />
-          </Routes>
+          <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
+            <Routes>
+              {/* Main Routes */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/chat" element={<ProfessionalChatInterface />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={<CompleteAdminPanel />} />
+              
+              {/* Fallback Route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            
+            {/* Floating Chatbot - Only show on non-admin routes */}
+            {!window.location.pathname.startsWith('/admin') && <FloatingChatbot />}
+          </Box>
         </Router>
       </AppProvider>
     </ThemeProvider>
