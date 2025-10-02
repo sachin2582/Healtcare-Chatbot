@@ -3,7 +3,7 @@
  * Handles all API calls for the admin panel
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 const ADMIN_API_URL = process.env.REACT_APP_ADMIN_API_URL || `${API_BASE_URL}/admin`;
 
 class AdminService {

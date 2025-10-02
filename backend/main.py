@@ -26,8 +26,9 @@ from schemas import (
     ChatButtonSchema, ChatButtonCreate, ChatButtonUpdate
 )
 from rag_service_enhanced import EnhancedRAGService
-from config import CORS_ORIGINS
+from config import CORS_ORIGINS, HOST, BACKEND_PORT, IS_PRODUCTION
 from text_config import SystemMessages, ErrorMessages
+from simple_admin_api import admin_router
 from timezone_utils import get_local_now
 
 # Initialize FastAPI app
@@ -48,6 +49,24 @@ app.add_middleware(
 
 # Initialize Enhanced RAG service
 rag_service = EnhancedRAGService()
+
+# Health check endpoint for production monitoring
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for production monitoring"""
+    return {
+        "status": "healthy",
+        "environment": "production" if IS_PRODUCTION else "development",
+        "version": "1.0.0"
+    }
+
+# Include admin router
+app.include_router(admin_router)
+
+# Test admin endpoint
+@app.get("/admin/test")
+async def test_admin():
+    return {"message": "Admin endpoint is working!"}
 
 @app.on_event("startup")
 async def startup_event():
@@ -216,6 +235,31 @@ async def create_doctor(doctor: DoctorCreate, db: Session = Depends(get_db)):
     db.refresh(db_doctor)
     return db_doctor
 
+@app.put("/doctors/{doctor_id}", response_model=DoctorSchema)
+async def update_doctor(doctor_id: int, doctor: DoctorCreate, db: Session = Depends(get_db)):
+    """Update a doctor"""
+    db_doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+    if not db_doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    
+    for key, value in doctor.dict().items():
+        setattr(db_doctor, key, value)
+    
+    db.commit()
+    db.refresh(db_doctor)
+    return db_doctor
+
+@app.delete("/doctors/{doctor_id}")
+async def delete_doctor(doctor_id: int, db: Session = Depends(get_db)):
+    """Delete a doctor"""
+    db_doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+    if not db_doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    
+    db.delete(db_doctor)
+    db.commit()
+    return {"message": "Doctor deleted successfully"}
+
 # Appointment endpoints
 @app.get("/appointments", response_model=List[AppointmentSchema])
 async def get_appointments(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -352,6 +396,87 @@ async def get_speciality(speciality_id: int, db: Session = Depends(get_db)):
     if not speciality:
         raise HTTPException(status_code=404, detail="Speciality not found")
     return speciality
+
+@app.post("/specialities", response_model=SpecialitySchema)
+async def create_speciality(speciality: SpecialityCreate, db: Session = Depends(get_db)):
+    """Create a new speciality"""
+    db_speciality = Speciality(**speciality.dict())
+    db.add(db_speciality)
+    db.commit()
+    db.refresh(db_speciality)
+    return db_speciality
+
+@app.put("/specialities/{speciality_id}", response_model=SpecialitySchema)
+async def update_speciality(speciality_id: int, speciality: SpecialityCreate, db: Session = Depends(get_db)):
+    """Update a speciality"""
+    db_speciality = db.query(Speciality).filter(Speciality.id == speciality_id).first()
+    if not db_speciality:
+        raise HTTPException(status_code=404, detail="Speciality not found")
+    
+    for key, value in speciality.dict().items():
+        setattr(db_speciality, key, value)
+    
+    db.commit()
+    db.refresh(db_speciality)
+    return db_speciality
+
+@app.delete("/specialities/{speciality_id}")
+async def delete_speciality(speciality_id: int, db: Session = Depends(get_db)):
+    """Delete a speciality"""
+    db_speciality = db.query(Speciality).filter(Speciality.id == speciality_id).first()
+    if not db_speciality:
+        raise HTTPException(status_code=404, detail="Speciality not found")
+    
+    db.delete(db_speciality)
+    db.commit()
+    return {"message": "Speciality deleted successfully"}
+
+# Time Slot endpoints
+@app.post("/doctor-time-slots")
+async def create_time_slot(time_slot: dict, db: Session = Depends(get_db)):
+    """Create a new time slot for a doctor"""
+    db_time_slot = DoctorTimeSlots(**time_slot)
+    db.add(db_time_slot)
+    db.commit()
+    db.refresh(db_time_slot)
+    return db_time_slot
+
+@app.put("/doctor-time-slots/{slot_id}")
+async def update_time_slot(slot_id: int, time_slot: dict, db: Session = Depends(get_db)):
+    """Update a time slot"""
+    db_time_slot = db.query(DoctorTimeSlots).filter(DoctorTimeSlots.id == slot_id).first()
+    if not db_time_slot:
+        raise HTTPException(status_code=404, detail="Time slot not found")
+    
+    for key, value in time_slot.items():
+        setattr(db_time_slot, key, value)
+    
+    db.commit()
+    db.refresh(db_time_slot)
+    return db_time_slot
+
+@app.delete("/doctor-time-slots/{slot_id}")
+async def delete_time_slot(slot_id: int, db: Session = Depends(get_db)):
+    """Delete a time slot"""
+    db_time_slot = db.query(DoctorTimeSlots).filter(DoctorTimeSlots.id == slot_id).first()
+    if not db_time_slot:
+        raise HTTPException(status_code=404, detail="Time slot not found")
+    
+    db.delete(db_time_slot)
+    db.commit()
+    return {"message": "Time slot deleted successfully"}
+
+@app.put("/doctor-time-slots/{slot_id}/toggle")
+async def toggle_time_slot(slot_id: int, db: Session = Depends(get_db)):
+    """Toggle time slot availability"""
+    db_time_slot = db.query(DoctorTimeSlots).filter(DoctorTimeSlots.id == slot_id).first()
+    if not db_time_slot:
+        raise HTTPException(status_code=404, detail="Time slot not found")
+    
+    db_time_slot.is_available = not db_time_slot.is_available
+    db.commit()
+    db.refresh(db_time_slot)
+    return {"message": f"Time slot {'activated' if db_time_slot.is_available else 'blocked'}"}
 
 # Doctor endpoints by speciality
 @app.get("/doctors/speciality/{speciality_id}", response_model=List[DoctorSchema])
@@ -1052,5 +1177,4 @@ async def toggle_chat_button_status(button_id: int, db: Session = Depends(get_db
         raise HTTPException(status_code=500, detail=f"Error toggling chat button status: {str(e)}")
 
 if __name__ == "__main__":
-    from config import BACKEND_PORT
-    uvicorn.run(app, host="0.0.0.0", port=BACKEND_PORT)
+    uvicorn.run(app, host=HOST, port=BACKEND_PORT)
