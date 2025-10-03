@@ -5,7 +5,7 @@ from typing import List, Optional
 import uvicorn
 
 from database import get_db, init_db
-from models import Patient, Doctor, Appointment, Document, Questionnaire, ChatSession, Speciality, DoctorTimeSlots, HealthPackage, HealthPackageTest, HealthPackageBooking, CallbackRequest, ChatButton
+from models import Patient, Doctor, Appointment, Document, Questionnaire, ChatSession, Speciality, DoctorTimeSlots, HealthPackage, HealthPackageTest, HealthPackageBooking, CallbackRequest, ChatButton, City
 from schemas import (
     Patient as PatientSchema, PatientCreate, PatientUpdate,
     Doctor as DoctorSchema, DoctorCreate,
@@ -23,7 +23,8 @@ from schemas import (
     HealthPackageWithTests, HealthPackageBookingRequest, HealthPackageBookingResponse,
     HealthPackageBooking as HealthPackageBookingSchema, HealthPackageBookingCreate,
     CallbackRequest as CallbackRequestSchema, CallbackRequestCreate, CallbackRequestResponse,
-    ChatButtonSchema, ChatButtonCreate, ChatButtonUpdate
+    ChatButtonSchema, ChatButtonCreate, ChatButtonUpdate,
+    CitySchema, CityCreate
 )
 from rag_service_enhanced import EnhancedRAGService
 from config import CORS_ORIGINS, HOST, BACKEND_PORT, IS_PRODUCTION
@@ -1017,7 +1018,8 @@ async def book_health_package(booking_request: HealthPackageBookingRequest, db: 
             confirmation_number=confirmation_number,
             payment_status="pending",
             booking_date=booking_datetime,
-            notes=booking_request.notes
+            notes=booking_request.notes,
+            city_id=booking_request.city_id
         )
         
         db.add(booking)
@@ -1039,6 +1041,38 @@ async def book_health_package(booking_request: HealthPackageBookingRequest, db: 
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error booking health package: {str(e)}")
+
+# City Endpoints
+@app.get("/cities", response_model=List[CitySchema])
+async def get_cities(db: Session = Depends(get_db)):
+    """Get all cities"""
+    try:
+        cities = db.query(City).order_by(City.name).all()
+        return cities
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching cities: {str(e)}")
+
+@app.get("/cities/available", response_model=List[CitySchema])
+async def get_available_cities(db: Session = Depends(get_db)):
+    """Get only cities where home collection is available"""
+    try:
+        cities = db.query(City).filter(City.is_available == True).order_by(City.name).all()
+        return cities
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching available cities: {str(e)}")
+
+@app.get("/cities/{city_id}", response_model=CitySchema)
+async def get_city(city_id: int, db: Session = Depends(get_db)):
+    """Get a specific city by ID"""
+    try:
+        city = db.query(City).filter(City.id == city_id).first()
+        if not city:
+            raise HTTPException(status_code=404, detail="City not found")
+        return city
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching city: {str(e)}")
 
 # Callback Request Endpoints
 @app.post("/callback-requests", response_model=CallbackRequestResponse)

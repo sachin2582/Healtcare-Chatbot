@@ -317,6 +317,7 @@ class HealthPackageBookingRequest(BaseModel):
     preferred_time: str  # HH:MM format
     home_collection: bool = False
     address: Optional[str] = None
+    city_id: Optional[int] = None
     notes: Optional[str] = None
 
 class HealthPackageBookingResponse(BaseModel):
@@ -444,6 +445,22 @@ class ChatButtonSchema(BaseModel):
     is_active: bool
     category: Optional[str] = None
     description: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# City Schemas
+class CityBase(BaseModel):
+    name: str
+    is_available: bool = True
+
+class CityCreate(CityBase):
+    pass
+
+class CitySchema(CityBase):
+    id: int
     created_at: datetime
     updated_at: datetime
 

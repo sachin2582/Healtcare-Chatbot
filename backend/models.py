@@ -195,12 +195,14 @@ class HealthPackageBooking(Base):
     confirmation_number = Column(String(20), unique=True, nullable=False)
     payment_status = Column(String(20), default="pending")  # pending, paid, failed, refunded
     notes = Column(Text, nullable=True)  # Additional notes from user
+    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True)  # City for home collection
     created_at = Column(DateTime, default=get_local_now)
     updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
     booking_date = Column(DateTime, nullable=False)  # Actual booking datetime
     
     # Relationships
     package = relationship("HealthPackage")
+    city = relationship("City", back_populates="health_package_bookings")
 
 class CallbackRequest(Base):
     __tablename__ = "callback_requests"
@@ -231,3 +233,15 @@ class ChatButton(Base):
     description = Column(Text, nullable=True)  # Description of what the button does
     created_at = Column(DateTime, default=get_local_now)
     updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
+
+class City(Base):
+    __tablename__ = "cities"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, unique=True)
+    is_available = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=get_local_now)
+    updated_at = Column(DateTime, default=get_local_now, onupdate=get_local_now)
+    
+    # Relationships
+    health_package_bookings = relationship("HealthPackageBooking", back_populates="city")

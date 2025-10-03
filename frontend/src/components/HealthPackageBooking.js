@@ -15,8 +15,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  FormControlLabel,
-  Checkbox,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -40,6 +38,7 @@ import {
   Close,
 } from '@mui/icons-material';
 import healthPackageService from '../services/healthPackageService';
+import cityService from '../services/cityService';
 
 const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
   const [packages, setPackages] = useState([]);
@@ -59,11 +58,16 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
     preferred_time: '',
     home_collection: false,
     address: '',
+    city_id: null,
     notes: '',
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [cities, setCities] = useState([]);
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [citiesLoading, setCitiesLoading] = useState(true);
+  const [cityChangeKey, setCityChangeKey] = useState(0);
 
   // Handle phone number input with validation
   const handlePhoneChange = (event) => {
@@ -82,10 +86,31 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
     setBookingData(prev => ({ ...prev, patient_phone: value }));
   };
 
-  // Load health packages on component mount
+  // Load health packages and cities on component mount
   useEffect(() => {
     loadHealthPackages();
+    loadCities();
   }, []);
+
+  // Update selectedCity when cities are loaded and a city is already selected
+  useEffect(() => {
+    if (cities.length > 0 && bookingData.city_id && !selectedCity) {
+      const city = cities.find(c => c.id === parseInt(bookingData.city_id));
+      if (city) {
+        setSelectedCity(city);
+        console.log('Restored selected city:', city.name, 'is_available:', city.is_available);
+      }
+    }
+  }, [cities, bookingData.city_id, selectedCity]);
+
+  // Handle address field when city availability changes
+  useEffect(() => {
+    if (selectedCity && !selectedCity.is_available) {
+      // Clear address when city is not available
+      setBookingData(prev => ({ ...prev, address: '' }));
+      console.log('Cleared address because city is not available:', selectedCity.name);
+    }
+  }, [selectedCity]);
 
 
   const loadHealthPackages = async () => {
@@ -99,6 +124,23 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
       setError(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCities = async () => {
+    try {
+      setCitiesLoading(true);
+      const data = await cityService.getCities();
+      setCities(data);
+      console.log(`Loaded ${data.length} cities from API`);
+      console.log('Sample city data:', data[0]);
+      console.log('Cities with availability info:', data.slice(0, 5).map(c => ({ name: c.name, is_available: c.is_available })));
+    } catch (err) {
+      console.error('Error loading cities from API:', err);
+      // Show error to user and provide fallback
+      setError('Unable to load cities. Please refresh the page or contact support.');
+    } finally {
+      setCitiesLoading(false);
     }
   };
 
@@ -148,6 +190,38 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
       }
       if (phoneDigits.startsWith('91')) {
         setError('Mobile number should not include country code (+91). Please enter only the 10-digit mobile number');
+        return;
+      }
+
+      // City selection validation
+      if (citiesLoading) {
+        setError('Please wait while cities are loading...');
+        return;
+      }
+      
+      if (cities.length === 0) {
+        setError('Cities are not available. Please refresh the page or contact support.');
+        return;
+      }
+      
+      if (!bookingData.city_id) {
+        setError('Please select a city for home collection');
+        return;
+      }
+      
+      const selectedCityData = cities.find(c => c.id === parseInt(bookingData.city_id));
+      if (!selectedCityData) {
+        setError('Selected city not found');
+        return;
+      }
+      
+      if (!selectedCityData.is_available) {
+        setError(`Home collection is not available in ${selectedCityData.name}. Please visit our hospital or select a different city.`);
+        return;
+      }
+      
+      if (!bookingData.address || bookingData.address.trim() === '') {
+        setError('Please provide your address for home collection');
         return;
       }
 
@@ -927,27 +1001,132 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
               />
             </Grid>
             <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={bookingData.home_collection}
-                    onChange={(e) => setBookingData(prev => ({ ...prev, home_collection: e.target.checked }))}
-                  />
-                }
-                label="Home collection available"
-              />
+              <Typography variant="h6" sx={{ mb: 2, color: '#1e3c72', fontWeight: 600 }}>
+                Home Collection Service
+              </Typography>
+              <FormControl fullWidth>
+                <InputLabel>Select City for Home Collection *</InputLabel>
+                <Select
+                  value={bookingData.city_id || ''}
+                  onChange={(e) => {
+                    const cityId = parseInt(e.target.value);
+                    const city = cities.find(c => c.id === cityId);
+                    console.log('Selected city ID:', cityId, 'Type:', typeof cityId);
+                    console.log('Selected city:', city);
+                    console.log('City is_available:', city?.is_available);
+                    
+                    // Clear previous city selection
+                    setSelectedCity(null);
+                    
+                    // Force re-render
+                    setCityChangeKey(prev => prev + 1);
+                    
+                    // Set new city selection immediately
+                    setSelectedCity(city);
+                    console.log('City set immediately:', city.name, 'is_available:', city.is_available, 'Type:', typeof city.is_available);
+                    
+                    // Update booking data
+                    setBookingData(prev => ({ 
+                      ...prev, 
+                      city_id: cityId,
+                      home_collection: cityId ? true : false,
+                      address: city?.is_available ? prev.address : '' // Clear address if city is not available
+                    }));
+                  }}
+                  label="Select City for Home Collection *"
+                  disabled={citiesLoading || cities.length === 0}
+                >
+                  {citiesLoading ? (
+                    <MenuItem disabled>
+                      <CircularProgress size={20} sx={{ mr: 1 }} />
+                      Loading cities...
+                    </MenuItem>
+                  ) : cities.length === 0 ? (
+                    <MenuItem disabled>
+                      No cities available. Please contact support.
+                    </MenuItem>
+                  ) : (
+                    cities.map((city) => (
+                      <MenuItem key={city.id} value={city.id}>
+                        {city.name} {!city.is_available && '(Not Available)'}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+                {citiesLoading && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                    Loading cities from database...
+                  </Typography>
+                )}
+                {!citiesLoading && cities.length === 0 && (
+                  <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                    Unable to load cities. Please refresh the page.
+                  </Typography>
+                )}
+              </FormControl>
             </Grid>
-            {bookingData.home_collection && (
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Address for Home Collection"
-                  multiline
-                  rows={3}
-                  value={bookingData.address}
-                  onChange={(e) => setBookingData(prev => ({ ...prev, address: e.target.value }))}
-                />
-              </Grid>
+            
+            {selectedCity && (
+              <Box key={cityChangeKey}>
+                {console.log('Rendering city section for:', selectedCity.name, 'is_available:', selectedCity.is_available, 'Type:', typeof selectedCity.is_available, 'Truthy check:', !!selectedCity.is_available)}
+                <Grid item xs={12}>
+                  <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                    Selected City: {selectedCity.name}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Availability Status: {selectedCity.is_available ? 'Available' : 'Not Available'} ({selectedCity.is_available ? 'true' : 'false'})
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  {(() => {
+                    // Robust check for availability - handle boolean, number, and string values
+                    const isAvailable = selectedCity.is_available === true || selectedCity.is_available === 1 || selectedCity.is_available === 'true';
+                    console.log(`City: ${selectedCity.name}, is_available: ${selectedCity.is_available} (${typeof selectedCity.is_available}), isAvailable: ${isAvailable}`);
+                    return isAvailable;
+                  })() ? (
+                    <>
+                      <Alert severity="success" sx={{ mb: 2 }}>
+                        ✅ Home collection is available in {selectedCity.name}
+                      </Alert>
+                      <TextField
+                        fullWidth
+                        label="Address for Home Collection *"
+                        multiline
+                        rows={3}
+                        value={bookingData.address}
+                        onChange={(e) => setBookingData(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="Enter your complete address with area, landmark, etc."
+                        required
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Alert severity="warning" sx={{ mb: 2 }}>
+                        ⚠️ Home collection is not available in {selectedCity.name}. Please visit our hospital for this package.
+                      </Alert>
+                      <TextField
+                        fullWidth
+                        label="Address for Home Collection"
+                        multiline
+                        rows={3}
+                        value=""
+                        disabled={true}
+                        placeholder="Home collection not available in this city"
+                        helperText="Address field is disabled because home collection is not available in the selected city"
+                        sx={{
+                          '& .MuiInputBase-input.Mui-disabled': {
+                            backgroundColor: '#f5f5f5',
+                            color: '#999999'
+                          },
+                          '& .MuiInputBase-root.Mui-disabled': {
+                            backgroundColor: '#f5f5f5'
+                          }
+                        }}
+                      />
+                    </>
+                  )}
+                </Grid>
+              </Box>
             )}
             <Grid item xs={12}>
               <TextField
