@@ -28,9 +28,24 @@ const PatientInfoForm = ({ onPatientCreated, onBack, existingPatient = null }) =
   const [success, setSuccess] = useState(null);
 
   const handleChange = (field) => (event) => {
+    let value = event.target.value;
+    
+    // Special handling for phone number
+    if (field === 'phone') {
+      // Remove all non-digit characters
+      const digitsOnly = value.replace(/\D/g, '');
+      
+      // Limit to 10 digits
+      if (digitsOnly.length > 10) {
+        value = digitsOnly.substring(0, 10);
+      } else {
+        value = digitsOnly;
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [field]: event.target.value
+      [field]: value
     }));
   };
 
@@ -43,14 +58,18 @@ const PatientInfoForm = ({ onPatientCreated, onBack, existingPatient = null }) =
       return;
     }
 
-    // Phone number validation
+    // Phone number validation - exactly 10 digits, no 0, no +91
     const phoneDigits = formData.phone.replace(/\D/g, '');
-    if (phoneDigits.length < 10) {
-      setError('Phone number must have at least 10 digits');
+    if (phoneDigits.length !== 10) {
+      setError('Phone number must be exactly 10 digits');
       return;
     }
-    if (phoneDigits.length > 15) {
-      setError('Phone number cannot have more than 15 digits');
+    if (phoneDigits.startsWith('0')) {
+      setError('Phone number cannot start with 0');
+      return;
+    }
+    if (phoneDigits.startsWith('91')) {
+      setError('Phone number should not include country code (+91). Please enter only the 10-digit mobile number');
       return;
     }
 
@@ -125,15 +144,16 @@ const PatientInfoForm = ({ onPatientCreated, onBack, existingPatient = null }) =
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Phone Number *"
+                  label="Mobile Number *"
                   value={formData.phone}
                   onChange={handleChange('phone')}
                   required
-                  placeholder="Enter your phone number (e.g., +1-555-123-4567)"
-                  helperText="We'll use this to contact you about your appointment. Must have at least 10 digits."
+                  placeholder="Enter your 10-digit mobile number (e.g., 9876543210)"
+                  helperText="Enter exactly 10 digits. No country code (+91) or leading 0 allowed."
                   inputProps={{
-                    pattern: "[0-9\\+\\-\\(\\)\\s]*",
-                    title: "Enter a valid phone number with at least 10 digits"
+                    pattern: "[0-9]{10}",
+                    title: "Enter a valid 10-digit mobile number",
+                    maxLength: 10
                   }}
                 />
               </Grid>

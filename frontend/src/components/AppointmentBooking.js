@@ -31,6 +31,27 @@ const AppointmentBooking = ({ doctor, speciality, patientId, onPatientCreated, o
   const [activeTab, setActiveTab] = useState(0);
   const [patientInfo, setPatientInfo] = useState(null);
 
+  // Function to disable Sundays in date picker
+  const isDateDisabled = (date) => {
+    const selectedDate = new Date(date);
+    return selectedDate.getDay() === 0; // 0 = Sunday
+  };
+
+  // Handle date change with Sunday validation
+  const handleDateChange = (event) => {
+    const newDate = event.target.value;
+    setSelectedDate(newDate);
+    setSelectedTime(''); // Clear selected time when date changes
+    
+    // Check if the selected date is a Sunday
+    if (newDate && isDateDisabled(newDate)) {
+      setError('Appointments cannot be booked on Sundays. Please choose a different date.');
+      setSelectedDate(''); // Clear the Sunday selection
+    } else {
+      setError(null); // Clear any previous errors
+    }
+  };
+
   // Load available slots when date changes
   const loadAvailableSlots = useCallback(async () => {
     if (!selectedDate || !doctor?.id) {
@@ -69,6 +90,12 @@ const AppointmentBooking = ({ doctor, speciality, patientId, onPatientCreated, o
   const handleBooking = async () => {
     if (!selectedDate || !selectedTime) {
       setError('Please select both date and time for your appointment.');
+      return;
+    }
+
+    // Check if the selected date is a Sunday
+    if (selectedDate && isDateDisabled(selectedDate)) {
+      setError('Appointments cannot be booked on Sundays. Please choose a different date.');
       return;
     }
 
@@ -194,7 +221,7 @@ const AppointmentBooking = ({ doctor, speciality, patientId, onPatientCreated, o
                   label="Select Date"
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  onChange={handleDateChange}
                   disabled={success}
                   InputLabelProps={{
                     shrink: true,
@@ -202,6 +229,7 @@ const AppointmentBooking = ({ doctor, speciality, patientId, onPatientCreated, o
                   inputProps={{
                     min: new Date().toISOString().split('T')[0]
                   }}
+                  helperText="Sundays are not available for appointments"
                 />
               </Grid>
               
@@ -438,6 +466,12 @@ const AppointmentBooking = ({ doctor, speciality, patientId, onPatientCreated, o
               </Alert>
             )}
 
+            {(!patientInfo && !patientId) && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Please complete the patient information in the first tab to enable appointment booking.
+              </Alert>
+            )}
+
             {success && (
               <Alert severity="success" sx={{ mt: 2 }}>
                 <Typography variant="h6" gutterBottom>
@@ -461,6 +495,7 @@ const AppointmentBooking = ({ doctor, speciality, patientId, onPatientCreated, o
               </Alert>
             )}
 
+
             <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center' }}>
               <Button variant="outlined" onClick={onBack} disabled={loading || success}>
                 Back to Doctors
@@ -468,7 +503,7 @@ const AppointmentBooking = ({ doctor, speciality, patientId, onPatientCreated, o
               <Button 
                 variant="contained" 
                 onClick={handleBooking}
-                disabled={loading || !selectedDate || !selectedTime || success}
+                disabled={loading || success || !selectedDate || !selectedTime || (!patientInfo && !patientId)}
                 sx={{ 
                   bgcolor: success ? '#4caf50' : '#1e3c72',
                   '&:hover': { bgcolor: success ? '#4caf50' : '#2a5298' }

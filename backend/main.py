@@ -196,6 +196,17 @@ async def get_patients(skip: int = 0, limit: int = 100, db: Session = Depends(ge
 async def create_patient(patient: PatientCreate, db: Session = Depends(get_db)):
     """Create a new patient"""
     try:
+        # Check for existing patient with same name and phone number
+        existing_patient = db.query(Patient).filter(
+            Patient.first_name == patient.first_name,
+            Patient.last_name == patient.last_name,
+            Patient.phone == patient.phone
+        ).first()
+        
+        if existing_patient:
+            # Return existing patient instead of creating duplicate
+            return PatientSchema.model_validate(existing_patient)
+        
         # Create new patient (allow null values for appointment booking)
         db_patient = Patient(**patient.dict())
         db.add(db_patient)
@@ -203,7 +214,7 @@ async def create_patient(patient: PatientCreate, db: Session = Depends(get_db)):
         db.refresh(db_patient)
         
         # Convert to Pydantic schema for response
-        return PatientSchema.from_orm(db_patient)
+        return PatientSchema.model_validate(db_patient)
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating patient: {str(e)}")
@@ -510,16 +521,53 @@ async def book_appointment(booking_request: AppointmentBookingRequest, db: Sessi
         if not doctor:
             raise HTTPException(status_code=404, detail="Doctor not found")
         
-        # Get speciality name
-        speciality_name = doctor.specialization
-        if doctor.speciality:
-            speciality_name = doctor.speciality.name
+        # Get patient details for validation
+        patient = db.query(Patient).filter(Patient.id == booking_request.patient_id).first()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
         
         # Parse date and time
         appointment_datetime = datetime.strptime(
             f"{booking_request.preferred_date} {booking_request.preferred_time}",
             "%Y-%m-%d %H:%M"
         )
+        
+        # Check if the appointment date is a Sunday (weekday 6)
+        if appointment_datetime.weekday() == 6:  # Sunday
+            raise HTTPException(
+                status_code=400,
+                detail="Appointments cannot be booked on Sundays. Please choose a different date."
+            )
+        
+        # Check for duplicate appointment validation
+        # Check if the same patient (name + mobile) already has an appointment on the same date with the same doctor/specialty
+        appointment_date_str = appointment_datetime.strftime('%Y-%m-%d')
+        existing_appointment = db.query(Appointment).join(Patient).join(Doctor).filter(
+            Patient.first_name == patient.first_name,
+            Patient.last_name == patient.last_name,
+            Patient.phone == patient.phone,
+            Appointment.date.like(f'{appointment_date_str}%'),  # SQLite compatible date matching
+            Appointment.status.in_(["scheduled", "confirmed"]),
+            Doctor.id == booking_request.doctor_id  # Same doctor/specialty
+        ).first()
+        
+        if existing_appointment:
+            existing_appointment_time = existing_appointment.date.strftime("%H:%M")
+            existing_doctor = db.query(Doctor).filter(Doctor.id == existing_appointment.doctor_id).first()
+            existing_specialty = existing_doctor.specialization if existing_doctor else "Unknown"
+            if existing_doctor and existing_doctor.speciality:
+                existing_specialty = existing_doctor.speciality.name
+                
+            print(f"🚫 VALIDATION: Preventing duplicate appointment for {patient.first_name} {patient.last_name} on {booking_request.preferred_date} in {existing_specialty}")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"An appointment is already booked for {patient.first_name} {patient.last_name} on {booking_request.preferred_date} at {existing_appointment_time} in {existing_specialty}. Please choose a different date, time, or specialty."
+            )
+        
+        # Get speciality name
+        speciality_name = doctor.specialization
+        if doctor.speciality:
+            speciality_name = doctor.speciality.name
         
         # Create appointment
         appointment = Appointment(
@@ -547,11 +595,20 @@ async def book_appointment(booking_request: AppointmentBookingRequest, db: Sessi
             confirmation_number=confirmation_number
         )
         
+    except HTTPException:
+        # Re-raise HTTPExceptions (like validation errors) without modification
+        raise
     except ValueError as e:
+        print(f"ValueError in appointment booking: {e}")
         raise HTTPException(status_code=400, detail="Invalid date or time format")
     except Exception as e:
+        print(f"Exception in appointment booking: {e}")
+        print(f"Exception type: {type(e)}")
+        import traceback
+        traceback.print_exc()
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error booking appointment: {str(e)}")
+        error_detail = str(e) if str(e) else "Unknown error occurred"
+        raise HTTPException(status_code=500, detail=f"Error booking appointment: {error_detail}")
 
 # Doctor Time Slots endpoints
 @app.get("/doctors/{doctor_id}/time-slots", response_model=List[DoctorTimeSlotSchema])
@@ -670,6 +727,17 @@ async def create_patient(patient: PatientCreate, db: Session = Depends(get_db)):
     
     for attempt in range(max_retries):
         try:
+            # Check for existing patient with same name and phone number
+            existing_patient = db.query(Patient).filter(
+                Patient.first_name == patient.first_name,
+                Patient.last_name == patient.last_name,
+                Patient.phone == patient.phone
+            ).first()
+            
+            if existing_patient:
+                # Return existing patient instead of creating duplicate
+                return PatientSchema.from_orm(existing_patient)
+            
             # Create new patient (allow duplicate emails for appointment booking)
             db_patient = Patient(**patient.dict())
             db.add(db_patient)
@@ -677,7 +745,7 @@ async def create_patient(patient: PatientCreate, db: Session = Depends(get_db)):
             db.refresh(db_patient)
             
             # Convert to Pydantic schema for response
-            return PatientSchema.from_orm(db_patient)
+            return PatientSchema.model_validate(db_patient)
         except Exception as e:
             db.rollback()
             error_msg = str(e)
@@ -912,6 +980,14 @@ async def book_health_package(booking_request: HealthPackageBookingRequest, db: 
         
         if not package:
             raise HTTPException(status_code=404, detail="Health package not found")
+        
+        # Gender validation for gender-specific packages
+        if package.gender_specific and package.gender_specific.lower() != booking_request.patient_gender.lower():
+            print(f"🚫 GENDER VALIDATION: Preventing {booking_request.patient_gender} from booking {package.name} (Gender Specific: {package.gender_specific})")
+            raise HTTPException(
+                status_code=400,
+                detail=f"This health package '{package.name}' is specifically designed for {package.gender_specific} patients only. Please choose a different package suitable for {booking_request.patient_gender} patients."
+            )
         
         # Parse date and time
         booking_datetime = datetime.strptime(

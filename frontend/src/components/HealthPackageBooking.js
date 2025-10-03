@@ -35,12 +35,8 @@ import {
 import {
   ExpandMore,
   LocalHospital,
-  Home,
-  AccessTime,
   CheckCircle,
   ArrowBack,
-  Visibility,
-  Info,
   Close,
 } from '@mui/icons-material';
 import healthPackageService from '../services/healthPackageService';
@@ -65,13 +61,32 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
     address: '',
     notes: '',
   });
+  const [searchTerm, setSearchTerm] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(null);
+
+  // Handle phone number input with validation
+  const handlePhoneChange = (event) => {
+    let value = event.target.value;
+    
+    // Remove all non-digit characters
+    const digitsOnly = value.replace(/\D/g, '');
+    
+    // Limit to 10 digits
+    if (digitsOnly.length > 10) {
+      value = digitsOnly.substring(0, 10);
+    } else {
+      value = digitsOnly;
+    }
+    
+    setBookingData(prev => ({ ...prev, patient_phone: value }));
+  };
 
   // Load health packages on component mount
   useEffect(() => {
     loadHealthPackages();
   }, []);
+
 
   const loadHealthPackages = async () => {
     try {
@@ -121,6 +136,22 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
         return;
       }
 
+      // Mobile number validation - exactly 10 digits, no 0, no +91
+      const phoneDigits = bookingData.patient_phone.replace(/\D/g, '');
+      if (phoneDigits.length !== 10) {
+        setError('Mobile number must be exactly 10 digits');
+        return;
+      }
+      if (phoneDigits.startsWith('0')) {
+        setError('Mobile number cannot start with 0');
+        return;
+      }
+      if (phoneDigits.startsWith('91')) {
+        setError('Mobile number should not include country code (+91). Please enter only the 10-digit mobile number');
+        return;
+      }
+
+
       const result = await healthPackageService.bookHealthPackage(bookingData);
       setBookingSuccess(result);
       setBookingDialogOpen(false);
@@ -153,23 +184,24 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
     return Math.round(((original - current) / original) * 100);
   };
 
-  const PackageCard = ({ pkg }) => (
-    <Card 
-      sx={{ 
-        height: '100%', 
-        display: 'flex', 
-        flexDirection: 'column',
-        position: 'relative',
-        transition: 'all 0.2s ease',
-        borderRadius: 2,
-        border: '1px solid #e2e8f0',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          borderColor: '#1e3c72',
-        }
-      }}
-    >
+  const PackageCard = ({ pkg }) => {
+    return (
+      <Card 
+        sx={{ 
+          height: '100%', 
+          display: 'flex', 
+          flexDirection: 'column',
+          position: 'relative',
+          transition: 'all 0.2s ease',
+          borderRadius: 2,
+          border: '1px solid #e2e8f0',
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            borderColor: '#1e3c72',
+          }
+        }}
+      >
       {/* Discount Badge */}
       {pkg.original_price && (
         <Chip
@@ -344,15 +376,18 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
             py: 0.25,
             px: 1,
             minHeight: 28,
-            '&:hover': { bgcolor: '#2a5298' },
+            '&:hover': { 
+              bgcolor: '#2a5298' 
+            },
             fontWeight: 600
           }}
         >
           Book
         </Button>
       </CardActions>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   const PackageDetailsDialog = () => (
     <Dialog 
@@ -641,7 +676,19 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
           </Box>
           
           <Chip 
-            label={`${packages.length} Packages`} 
+            label={`${(() => {
+              const filtered = packages.filter(pkg => {
+                if (!searchTerm || searchTerm.trim() === '') return true;
+                const searchLower = searchTerm.toLowerCase();
+                return (
+                  pkg.name.toLowerCase().includes(searchLower) ||
+                  pkg.description.toLowerCase().includes(searchLower) ||
+                  pkg.age_group.toLowerCase().includes(searchLower) ||
+                  (pkg.gender_specific && pkg.gender_specific.toLowerCase().includes(searchLower))
+                );
+              });
+              return filtered.length;
+            })()} Packages`} 
             color="primary" 
             variant="outlined"
             size="small"
@@ -651,14 +698,91 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
         </Box>
       </Paper>
 
+      {/* Search Section */}
+      <Paper sx={{ 
+        p: 2, 
+        mb: 2, 
+        bgcolor: '#f0f8ff', 
+        border: '1px solid #b3d9ff', 
+        borderRadius: 2 
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e3c72' }}>
+            Search packages:
+          </Typography>
+          <TextField
+            size="small"
+            placeholder="Search by package name, description, or features..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{ 
+              minWidth: 300,
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'white',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#1e3c72',
+                }
+              }
+            }}
+          />
+          {searchTerm && (
+            <Chip
+              label={`Searching: "${searchTerm}"`}
+              color="primary"
+              variant="outlined"
+              size="small"
+              onDelete={() => setSearchTerm('')}
+            />
+          )}
+        </Box>
+      </Paper>
+
       {/* Packages Grid - Tighter */}
-      <Grid container spacing={1.5}>
-        {packages.map((pkg) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={pkg.id}>
-            <PackageCard pkg={pkg} />
+      {(() => {
+        const filteredPackages = packages.filter(pkg => {
+          // If no search term, show all packages
+          if (!searchTerm || searchTerm.trim() === '') return true;
+          
+          // Search in package name, description, age group, and gender
+          const searchLower = searchTerm.toLowerCase();
+          return (
+            pkg.name.toLowerCase().includes(searchLower) ||
+            pkg.description.toLowerCase().includes(searchLower) ||
+            pkg.age_group.toLowerCase().includes(searchLower) ||
+            (pkg.gender_specific && pkg.gender_specific.toLowerCase().includes(searchLower))
+          );
+        });
+
+        if (filteredPackages.length === 0) {
+          return (
+            <Paper sx={{ p: 4, textAlign: 'center', bgcolor: '#f8f9fa' }}>
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                No packages found for "{searchTerm}"
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Try searching with different keywords or clear the search to see all packages
+              </Typography>
+              <Button 
+                variant="outlined" 
+                onClick={() => setSearchTerm('')}
+                sx={{ borderColor: '#1e3c72', color: '#1e3c72' }}
+              >
+                Clear Search
+              </Button>
+            </Paper>
+          );
+        }
+
+        return (
+          <Grid container spacing={1.5}>
+            {filteredPackages.map((pkg) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={pkg.id}>
+                <PackageCard pkg={pkg} />
+              </Grid>
+            ))}
           </Grid>
-        ))}
-      </Grid>
+        );
+      })()}
 
       {/* Back to Chat Button - Fixed Position */}
       {onBack && (
@@ -728,15 +852,22 @@ const HealthPackageBooking = ({ onBookingComplete, onBack }) => {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Phone Number *"
-                value={bookingData.patient_phone}
-                onChange={(e) => setBookingData(prev => ({ ...prev, patient_phone: e.target.value }))}
-                required
-              />
-            </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Mobile Number *"
+                      value={bookingData.patient_phone}
+                      onChange={handlePhoneChange}
+                      required
+                      placeholder="Enter your 10-digit mobile number"
+                      helperText="Enter exactly 10 digits. No country code (+91) or leading 0 allowed."
+                      inputProps={{
+                        pattern: "[0-9]{10}",
+                        title: "Enter a valid 10-digit mobile number",
+                        maxLength: 10
+                      }}
+                    />
+                  </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
